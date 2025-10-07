@@ -30,6 +30,13 @@ def load_data():
         for col in assessment_cols:
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col], errors='coerce').fillna(0).astype(int)
+        
+        # 清理班級數目，確保為數字
+        for year in ["上學年", "本學年"]:
+            for grade in ["小一", "小二", "小三", "小四", "小五", "小六", "總"]:
+                col_name = f"{year}{grade}班數"
+                if col_name in school_df.columns:
+                    school_df[col_name] = pd.to_numeric(school_df[col_name], errors='coerce').fillna(0).astype(int)
 
         return school_df, article_df
         
@@ -42,7 +49,6 @@ def load_data():
 
 # --- 輔助函數 ---
 def display_info(label, value):
-    # 只有當值有效時才顯示
     if pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']:
         st.markdown(f"**{label}：** {str(value)}")
 
@@ -149,8 +155,8 @@ if school_df is not None and article_df is not None:
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            # --- 全新顯示方式 ---
-            # 定義欄位分類
+            # --- 顯示方式 ---
+            # 移除了原有的 "班級結構" 分類，後續會以表格形式獨立顯示
             categories = {
                 "基本資料": ["區域", "小一學校網", "資助類型", "學生性別", "宗教", "上課時間", "創校年份", "校訓"],
                 "聯繫方式": ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"],
@@ -158,37 +164,43 @@ if school_df is not None and article_df is not None:
                 "學校特色": ["教學語言", "一條龍中學", "直屬中學", "聯繫中學", "校車", "保姆車"],
                 "學業評估與安排": list(col_map.values()),
                 "師資概況": ["上學年核准編制教師職位數目", "上學年教師總人數", "上學年已接受師資培训人數百分率", "上學年學士人數百分率", "上學年碩士_博士或以上人數百分率", "上學年特殊教育培訓人數百分率"],
-                "班級結構": ["上學年小一班數", "上學年小二班數", "上學年小三班數", "上學年小四班數", "上學年小五班數", "上學年小六班數", "上學年總班數"],
                 "學校設施": ["課室數目", "禮堂數目", "操場數目", "圖書館數目", "特別室", "其他學校設施", "支援有特殊教育需要學生的設施"],
                 "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色"],
                 "費用": ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
             }
-            # 將已分類的欄位集合起來，方便後續找出「其他資料」
             categorized_cols = set(col for cols in categories.values() for col in cols)
 
             for index, row in filtered_schools.iterrows():
                 with st.expander(f"**{row['學校名稱']}**"):
                     for category, cols in categories.items():
-                        # 檢查這個分類下是否有任何有效資料
                         if any(pd.notna(row.get(col)) and str(row.get(col)).strip() and str(row.get(col)).lower() not in ['nan', '-'] for col in cols):
                             st.markdown(f"##### {category}")
-                            # 對於長文本內容，單獨顯示
                             if category == "辦學理念":
                                 for col in cols: display_info(col, row.get(col))
-                            else: # 其他分類使用分欄
+                            else:
                                 sub_cols = st.columns(3)
-                                # 將欄位分配到不同的分欄中
                                 for i, col_name in enumerate(cols):
                                     with sub_cols[i % 3]:
                                         display_info(col_name, row.get(col_name))
+                    
+                    # --- 修改 START: 以表格形式顯示班級結構 ---
+                    st.markdown("##### 班級結構")
+                    grades = ["小一", "小二", "小三", "小四", "小五", "小六", "總"]
+                    class_data = {
+                        "年級": grades,
+                        "上學年班數": [row.get(f"上學年{g}班數", 0) for g in grades],
+                        "本學年班數": [row.get(f"本學年{g}班數", 0) for g in grades]
+                    }
+                    class_df = pd.DataFrame(class_data)
+                    st.table(class_df.set_index('年級'))
+                    # --- 修改 END ---
 
-                    # 顯示所有未被分類的「其他資料」
                     st.markdown("##### 其他資料")
                     other_cols_exist = False
                     sub_cols = st.columns(3)
                     i = 0
                     for col_name in school_df.columns:
-                        if col_name not in categorized_cols and col_name != "學校名稱": # 避免重複
+                        if col_name not in categorized_cols and "班數" not in col_name and col_name != "學校名稱":
                             if pd.notna(row.get(col_name)) and str(row.get(col_name)).strip() and str(row.get(col_name)).lower() not in ['nan', '-']:
                                 with sub_cols[i % 3]:
                                     display_info(col_name, row.get(col_name))
@@ -197,8 +209,6 @@ if school_df is not None and article_df is not None:
                     if not other_cols_exist:
                         st.info("沒有其他資料可顯示。")
 
-
-                    # 顯示相關文章
                     related_articles = article_df[article_df["學校名稱"] == row["學校名稱"]]
                     if not related_articles.empty:
                         st.markdown("---")
