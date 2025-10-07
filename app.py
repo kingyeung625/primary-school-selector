@@ -29,11 +29,9 @@ def load_data():
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
         # 3. 建立布林值欄位以便篩選
-        # 關聯學校：檢查相關欄位是否有內容
         related_cols = ["一條龍中學", "直屬中學", "聯繫中學"]
         school_df["有關聯學校"] = school_df[related_cols].notna().any(axis=1)
         
-        # 校車/保姆車：檢查相關欄位是否為 "有"
         transport_cols = ["校車", "保姆車"]
         school_df["有校車服務"] = (school_df[transport_cols] == "有").any(axis=1)
         
@@ -52,7 +50,6 @@ school_df, article_df = load_data()
 if school_df is not None and article_df is not None:
     st.subheader("篩選條件")
 
-    # --- 使用四欄來放置所有篩選器 ---
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -77,24 +74,31 @@ if school_df is not None and article_df is not None:
         selected_language = st.multiselect("教學語言", languages, default=[])
 
     with col4:
-        # 學費滑桿
-        min_fee, max_fee = int(school_df["學費"].min()), int(school_df["學費"].max())
+        # --- 錯誤修正 START ---
+        # 為學費滑桿加入安全檢查
+        min_fee, max_fee = 0, 0 # 預設值
+        if "學費" in school_df.columns and not school_df["學費"].empty:
+            min_val = school_df["學費"].min()
+            max_val = school_df["學費"].max()
+            if max_val >= min_val: # 只有在範圍有效時才更新
+                min_fee, max_fee = int(min_val), int(max_val)
         selected_fee = st.slider("學費範圍", min_fee, max_fee, (min_fee, max_fee))
         
-        # 堂費滑桿
-        min_tfee, max_tfee = int(school_df["堂費"].min()), int(school_df["堂費"].max())
+        # 為堂費滑桿加入安全檢查
+        min_tfee, max_tfee = 0, 0 # 預設值
+        if "堂費" in school_df.columns and not school_df["堂費"].empty:
+            min_val = school_df["堂費"].min()
+            max_val = school_df["堂費"].max()
+            if max_val >= min_val: # 只有在範圍有效時才更新
+                min_tfee, max_tfee = int(min_val), int(max_val)
         selected_tfee = st.slider("堂費範圍", min_tfee, max_tfee, (min_tfee, max_tfee))
+        # --- 錯誤修正 END ---
 
-        # 布林值篩選
         has_related_school = st.checkbox("只顯示有關聯學校")
         has_school_bus = st.checkbox("只顯示有校車或保姆車")
 
-
-    # --- "搜尋學校" 按鈕 ---
     if st.button("搜尋學校", type="primary", use_container_width=True):
         
-        # --- 篩選邏輯 ---
-        # 建立一個布林值的 "遮罩 (mask)"，初始為全 True
         mask = pd.Series(True, index=school_df.index)
 
         if selected_region:
@@ -110,11 +114,11 @@ if school_df is not None and article_df is not None:
         if selected_language:
             mask &= school_df["教學語言"].isin(selected_language)
         
-        # 範圍篩選
-        mask &= school_df["學費"].between(selected_fee[0], selected_fee[1])
-        mask &= school_df["堂費"].between(selected_tfee[0], selected_tfee[1])
+        if "學費" in school_df.columns:
+            mask &= school_df["學費"].between(selected_fee[0], selected_fee[1])
+        if "堂費" in school_df.columns:
+            mask &= school_df["堂費"].between(selected_tfee[0], selected_tfee[1])
 
-        # 布林值篩選
         if has_related_school:
             mask &= school_df["有關聯學校"]
         if has_school_bus:
@@ -128,13 +132,11 @@ if school_df is not None and article_df is not None:
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            # 隱藏我們自己建立的欄位，讓表格更乾淨
             display_cols = [col for col in school_df.columns if col not in ["有關聯學校", "有校車服務"]]
             st.dataframe(filtered_schools[display_cols])
 
             st.divider()
 
-            # --- 顯示相關文章 ---
             st.subheader("相關文章")
             selected_school_name = st.selectbox("從上方篩選結果中，選擇一所學校查看相關文章", filtered_schools["學校名稱"].unique())
 
