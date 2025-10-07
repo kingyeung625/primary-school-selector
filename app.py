@@ -15,10 +15,8 @@ def load_data():
         school_df = pd.read_csv("database - 學校資料.csv")
         article_df = pd.read_csv("database - 相關文章.csv")
         
-        # 重新命名欄位
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
-        # 即使不篩選，也對費用欄位做基本清理，以防未來顯示時出錯
         fee_columns = ["學費", "堂費"]
         for col in fee_columns:
             if col in school_df.columns:
@@ -36,42 +34,47 @@ def load_data():
 school_df, article_df = load_data()
 
 # --- 主應用程式 ---
-if school_df is not None and article_df is not None:
-    st.subheader("篩選條件")
+if school_df is not- None and article_df is not None:
+    
+    # --- 修改 START: 重新排序篩選條件 ---
+    st.subheader("學校基本資料")
 
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
+    # 第一行
+    row1_col1, row1_col2, row1_col3 = st.columns(3)
+    with row1_col1:
         regions = sorted(school_df["區域"].unique())
         selected_region = st.multiselect("區域", regions, default=[])
-        
+    with row1_col2:
+        nets = sorted(school_df["小一學校網"].dropna().unique())
+        selected_net = st.multiselect("小一學校網", nets, default=[])
+    with row1_col3:
         cat1 = sorted(school_df["資助類型"].unique())
         selected_cat1 = st.multiselect("資助類型", cat1, default=[])
-        
-        related_school_options = ["一條龍中學", "直屬中學", "聯繫中學"]
-        selected_related = st.multiselect("關聯學校類型", related_school_options, default=[])
 
-    with col2:
+    # 第二行
+    row2_col1, row2_col2, row2_col3 = st.columns(3)
+    with row2_col1:
         genders = sorted(school_df["學生性別"].unique())
         selected_gender = st.multiselect("學生性別", genders, default=[])
-        
+    with row2_col2:
+        religions = sorted(school_df["宗教"].unique())
+        selected_religion = st.multiselect("宗教", religions, default=[])
+    with row2_col3:
         session_types = sorted(school_df["上課時間"].unique())
         selected_session = st.multiselect("上課時間", session_types, default=[])
 
-        transport_options = ["校車", "保姆車"]
-        selected_transport = st.multiselect("校車服務", transport_options, default=[])
-        
-    with col3:
-        religions = sorted(school_df["宗教"].unique())
-        selected_religion = st.multiselect("宗教", religions, default=[])
-        
+    # 第三行
+    row3_col1, row3_col2, row3_col3 = st.columns(3)
+    with row3_col1:
         languages = sorted(school_df["教學語言"].dropna().unique())
         selected_language = st.multiselect("教學語言", languages, default=[])
-
-        # --- 修改 START: 新增小一學校網篩選 ---
-        nets = sorted(school_df["小一學校網"].dropna().unique())
-        selected_net = st.multiselect("小一學校網", nets, default=[])
-        # --- 修改 END ---
+    with row3_col2:
+        related_school_options = ["一條龍中學", "直屬中學", "聯繫中學"]
+        selected_related = st.multiselect("關聯學校類型", related_school_options, default=[])
+    with row3_col3:
+        transport_options = ["校車", "保姆車"]
+        selected_transport = st.multiselect("校車服務", transport_options, default=[])
+    # --- 修改 END ---
 
 
     # --- "搜尋學校" 按鈕 ---
@@ -79,6 +82,7 @@ if school_df is not None and article_df is not None:
         
         mask = pd.Series(True, index=school_df.index)
 
+        # 篩選邏輯 (順序不影響結果)
         if selected_region:
             mask &= school_df["區域"].isin(selected_region)
         if selected_cat1:
@@ -91,11 +95,8 @@ if school_df is not None and article_df is not None:
             mask &= school_df["宗教"].isin(selected_religion)
         if selected_language:
             mask &= school_df["教學語言"].isin(selected_language)
-        
-        # --- 修改 START: 加入小一學校網的篩選邏輯 ---
         if selected_net:
             mask &= school_df["小一學校網"].isin(selected_net)
-        # --- 修改 END ---
 
         if selected_related:
             related_mask = pd.Series(False, index=school_df.index)
@@ -123,7 +124,6 @@ if school_df is not None and article_df is not None:
 
             st.divider()
 
-            # --- 顯示相關文章 ---
             st.subheader("相關文章")
             selected_school_name = st.selectbox("從上方篩選結果中，選擇一所學校查看相關文章", filtered_schools["學校名稱"].unique())
 
