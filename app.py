@@ -31,7 +31,6 @@ def load_data():
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col], errors='coerce').fillna(0).astype(int)
         
-        # 清理班級數目，確保為數字
         for year in ["上學年", "本學年"]:
             for grade in ["小一", "小二", "小三", "小四", "小五", "小六", "總"]:
                 col_name = f"{year}{grade}班數"
@@ -156,7 +155,6 @@ if school_df is not None and article_df is not None:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
             # --- 顯示方式 ---
-            # 移除了原有的 "班級結構" 分類，後續會以表格形式獨立顯示
             categories = {
                 "基本資料": ["區域", "小一學校網", "資助類型", "學生性別", "宗教", "上課時間", "創校年份", "校訓"],
                 "聯繫方式": ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"],
@@ -183,16 +181,18 @@ if school_df is not None and article_df is not None:
                                     with sub_cols[i % 3]:
                                         display_info(col_name, row.get(col_name))
                     
-                    # --- 修改 START: 以表格形式顯示班級結構 ---
+                    # --- 修改 START: 以轉置表格顯示班級結構 ---
                     st.markdown("##### 班級結構")
-                    grades = ["小一", "小二", "小三", "小四", "小五", "小六", "總"]
-                    class_data = {
-                        "年級": grades,
-                        "上學年班數": [row.get(f"上學年{g}班數", 0) for g in grades],
-                        "本學年班數": [row.get(f"本學年{g}班數", 0) for g in grades]
-                    }
-                    class_df = pd.DataFrame(class_data)
-                    st.table(class_df.set_index('年級'))
+                    grades_display = ["小一", "小二", "小三", "小四", "小五", "小六", "總數"]
+                    grades_internal = ["小一", "小二", "小三", "小四", "小五", "小六", "總"] # 用於讀取欄位
+                    
+                    last_year_data = [row.get(f"上學年{g}班數", 0) for g in grades_internal]
+                    this_year_data = [row.get(f"本學年{g}班數", 0) for g in grades_internal]
+
+                    class_df = pd.DataFrame([last_year_data, this_year_data],
+                                            columns=grades_display,
+                                            index=["上學年班數", "本學年班數"])
+                    st.table(class_df)
                     # --- 修改 END ---
 
                     st.markdown("##### 其他資料")
