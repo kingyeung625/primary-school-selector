@@ -104,7 +104,7 @@ if school_df is not None and article_df is not None:
     if st.button("搜尋學校", type="primary", use_container_width=True):
         
         mask = pd.Series(True, index=school_df.index)
-        # 篩選邏輯... (此處省略未變動的程式碼)
+        # 篩選邏輯...
         if selected_region: mask &= school_df["區域"].isin(selected_region)
         if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
         if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
@@ -144,42 +144,29 @@ if school_df is not None and article_df is not None:
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            # --- 修改 START: 全新的卡片式顯示方式 ---
+            # --- 修改 START: 動態顯示所有資料 ---
             for index, row in filtered_schools.iterrows():
-                # 每個學校都是一個可展開的容器
-                with st.expander(f"**{row['學校名稱']}** ({row['區域']})"):
+                with st.expander(f"**{row['學校名稱']}**"):
                     
-                    # 內部使用分欄來排版
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.markdown("##### **學校資料**")
-                        st.markdown(f"**地址：** {row.get('學校地址', 'N/A')}")
-                        st.markdown(f"**小一學校網：** {row.get('小一學校網', 'N/A')}")
-                        st.markdown(f"**資助類型：** {row.get('資助類型', 'N/A')}")
-                        st.markdown(f"**學生性別：** {row.get('學生性別', 'N/A')}")
-                        st.markdown(f"**宗教：** {row.get('宗教', 'N/A')}")
-                        
-                    with col2:
-                        st.markdown("##### **聯繫方式**")
-                        st.markdown(f"**電話：** {row.get('學校電話', 'N/A')}")
-                        st.markdown(f"**傳真：** {row.get('學校傳真', 'N/A')}")
-                        if pd.notna(row.get('學校網址')):
-                            st.markdown(f"**學校網址：** [{row.get('學校網址')}]({row.get('學校網址')})")
-
-                    st.markdown("---")
-                    
-                    # 顯示其他重要資訊
-                    st.markdown("##### **學業評估**")
-                    st.text(f"一年級測驗及考試次數：{row.get(col_map['g1_tests'], 0)}測 / {row.get(col_map['g1_exams'], 0)}考")
-                    st.text(f"二至六年級測驗及考試次數：{row.get(col_map['g2_6_tests'], 0)}測 / {row.get(col_map['g2_6_exams'], 0)}考")
+                    st.markdown("#### **詳細資料**")
+                    # 遍歷該學校的所有欄位
+                    for col_name in filtered_schools.columns:
+                        # 獲取資料值，並轉換為字串
+                        value = str(row[col_name])
+                        # 只有當值不是空的、'nan'或'-'時才顯示
+                        if pd.notna(row[col_name]) and value.strip() and value != '-' and value.lower() != 'nan':
+                            # 如果是網址，則以可點擊連結方式顯示
+                            if "網址" in col_name and "http" in value:
+                                st.markdown(f"**{col_name}：** [{value}]({value})")
+                            else:
+                                st.markdown(f"**{col_name}：** {value}")
 
                     # 整合相關文章
                     related_articles = article_df[article_df["學校名稱"] == row["學校名稱"]]
                     if not related_articles.empty:
-                        st.markdown("##### **相關文章**")
+                        st.markdown("---")
+                        st.markdown("#### **相關文章**")
                         for _, article_row in related_articles.iterrows():
-                            # 確保文章標題和連結存在
                             title = article_row.get('文章標題')
                             link = article_row.get('文章連結')
                             if pd.notna(title) and pd.notna(link):
