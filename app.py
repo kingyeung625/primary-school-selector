@@ -11,11 +11,13 @@ st.title("香港小學選校篩選器")
 @st.cache_data
 def load_data():
     try:
-        school_df = pd.read_csv("database.xlsx - 學校資料.csv")
-        article_df = pd.read_csv("database.xlsx - 相關文章.csv")
+        # 更新檔案名稱以符合您的要求
+        school_df = pd.read_csv("database - 學校資料.csv")
+        article_df = pd.read_csv("database - 相關文章.csv")
         return school_df, article_df
     except FileNotFoundError:
-        st.error("錯誤：找不到資料檔案。請確保 'database.xlsx - 學校資料.csv' 和 'database.xlsx - 相關文章.csv' 檔案與 app.py 在同一個資料夾中。")
+        # 更新錯誤訊息中的檔案名稱
+        st.error("錯誤：找不到資料檔案。請確保 'database - 學校資料.csv' 和 'database - 相關文章.csv' 檔案與 app.py 在同一個資料夾中。")
         return None, None
 
 school_df, article_df = load_data()
