@@ -97,9 +97,7 @@ if school_df is not None and article_df is not None:
     with hw_col1:
         selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options)
         selected_g1_exams = st.selectbox("一年級考試次數", assessment_options)
-        # --- 修改 START: 更新 checkbox 的顯示文字 ---
         use_diverse_assessment = st.checkbox("學校於小一上學期以多元化的進展性評估代替測驗及考試")
-        # --- 修改 END ---
 
     with hw_col2:
         selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options)
@@ -118,11 +116,15 @@ if school_df is not None and article_df is not None:
         if selected_language: mask &= school_df["教學語言"].isin(selected_language)
         if selected_net: mask &= school_df["小一學校網"].isin(selected_net)
 
+        # --- 邏輯修正 START ---
         if selected_related:
             related_mask = pd.Series(False, index=school_df.index)
             for col in selected_related:
-                if col in school_df.columns: related_mask |= school_df[col].notna()
+                if col in school_df.columns:
+                    # 必須有資料(notna) **而且** 內容不能是 "-"
+                    related_mask |= (school_df[col].notna() & (school_df[col] != "-"))
             mask &= related_mask
+        # --- 邏輯修正 END ---
 
         if selected_transport:
             transport_mask = pd.Series(False, index=school_df.index)
