@@ -41,21 +41,17 @@ def load_data():
         return None, None
 
 # --- 輔助函數 ---
-# 一個幫助顯示資料的函數，避免重複程式碼並自動處理空值
 def display_info(label, value):
-    if pd.notna(value) and str(value).strip() and str(value).lower() != 'nan' and str(value) != '-':
-        st.markdown(f"**{label}：** {value}")
-
-def display_link(label, value):
-    if pd.notna(value) and "http" in str(value):
-        st.markdown(f"**{label}：** [{value}]({value})")
+    # 只有當值有效時才顯示
+    if pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']:
+        st.markdown(f"**{label}：** {str(value)}")
 
 school_df, article_df = load_data()
 
 # --- 主應用程式 ---
 if school_df is not None and article_df is not None:
     
-    # --- 篩選器介面 (此處省略未變動的程式碼) ---
+    # --- 篩選器介面 ---
     st.subheader("學校基本資料")
     row1_col1, row1_col2, row1_col3 = st.columns(3)
     with row1_col1:
@@ -114,7 +110,7 @@ if school_df is not None and article_df is not None:
     if st.button("搜尋學校", type="primary", use_container_width=True):
         
         mask = pd.Series(True, index=school_df.index)
-        # --- 篩選邏輯 (此處省略未變動的程式碼) ---
+        # --- 篩選邏輯 ---
         if selected_region: mask &= school_df["區域"].isin(selected_region)
         if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
         if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
@@ -153,58 +149,56 @@ if school_df is not None and article_df is not None:
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            # --- 修改 START: 全新卡片式顯示方式 ---
+            # --- 全新顯示方式 ---
+            # 定義欄位分類
+            categories = {
+                "基本資料": ["區域", "小一學校網", "資助類型", "學生性別", "宗教", "上課時間", "創校年份", "校訓"],
+                "聯繫方式": ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"],
+                "管治架構": ["辦學團體", "法團校董會", "校監_校管會主席姓名", "校長姓名"],
+                "學校特色": ["教學語言", "一條龍中學", "直屬中學", "聯繫中學", "校車", "保姆車"],
+                "學業評估與安排": list(col_map.values()),
+                "師資概況": ["上學年核准編制教師職位數目", "上學年教師總人數", "上學年已接受師資培训人數百分率", "上學年學士人數百分率", "上學年碩士_博士或以上人數百分率", "上學年特殊教育培訓人數百分率"],
+                "班級結構": ["上學年小一班數", "上學年小二班數", "上學年小三班數", "上學年小四班數", "上學年小五班數", "上學年小六班數", "上學年總班數"],
+                "學校設施": ["課室數目", "禮堂數目", "操場數目", "圖書館數目", "特別室", "其他學校設施", "支援有特殊教育需要學生的設施"],
+                "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色"],
+                "費用": ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
+            }
+            # 將已分類的欄位集合起來，方便後續找出「其他資料」
+            categorized_cols = set(col for cols in categories.values() for col in cols)
+
             for index, row in filtered_schools.iterrows():
                 with st.expander(f"**{row['學校名稱']}**"):
-                    # --- 基本資料 ---
-                    st.markdown("##### 基本資料")
-                    c1, c2, c3 = st.columns(3)
-                    with c1:
-                        display_info("區域", row.get("區域"))
-                        display_info("小一學校網", row.get("小一學校網"))
-                    with c2:
-                        display_info("資助類型", row.get("資助類型"))
-                        display_info("學生性別", row.get("學生性別"))
-                    with c3:
-                        display_info("宗教", row.get("宗教"))
-                        display_info("上課時間", row.get("上課時間"))
-                    
-                    # --- 聯繫方式 ---
-                    st.markdown("##### 聯繫方式")
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        display_info("學校地址", row.get("學校地址"))
-                        display_info("學校電話", row.get("學校電話"))
-                    with c2:
-                        display_info("學校傳真", row.get("學校傳真"))
-                        display_link("學校網址", row.get("學校網址"))
+                    for category, cols in categories.items():
+                        # 檢查這個分類下是否有任何有效資料
+                        if any(pd.notna(row.get(col)) and str(row.get(col)).strip() and str(row.get(col)).lower() not in ['nan', '-'] for col in cols):
+                            st.markdown(f"##### {category}")
+                            # 對於長文本內容，單獨顯示
+                            if category == "辦學理念":
+                                for col in cols: display_info(col, row.get(col))
+                            else: # 其他分類使用分欄
+                                sub_cols = st.columns(3)
+                                # 將欄位分配到不同的分欄中
+                                for i, col_name in enumerate(cols):
+                                    with sub_cols[i % 3]:
+                                        display_info(col_name, row.get(col_name))
 
-                    # --- 學校特色 ---
-                    st.markdown("##### 學校特色")
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        display_info("教學語言", row.get("教學語言"))
-                        display_info("一條龍中學", row.get("一條龍中學"))
-                        display_info("直屬中學", row.get("直屬中學"))
-                        display_info("聯繫中學", row.get("聯繫中學"))
-                    with c2:
-                        display_info("校車服務", row.get("校車"))
-                        display_info("保姆車服務", row.get("保姆車"))
-                        display_info("法團校董會", row.get("法團校董會"))
-                    
-                    # --- 學業評估 ---
-                    st.markdown("##### 學業評估與安排")
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        display_info("一年級測驗次數", row.get(col_map["g1_tests"]))
-                        display_info("二至六年級測驗次數", row.get(col_map["g2_6_tests"]))
-                        display_info("多元化評估代替測考(小一上學期)", row.get(col_map["g1_diverse_assessment"]))
-                    with c2:
-                        display_info("一年級考試次數", row.get(col_map["g1_exams"]))
-                        display_info("二至六年級考試次數", row.get(col_map["g2_6_exams"]))
-                        display_info("下午設導修課", row.get(col_map["tutorial_session"]))
+                    # 顯示所有未被分類的「其他資料」
+                    st.markdown("##### 其他資料")
+                    other_cols_exist = False
+                    sub_cols = st.columns(3)
+                    i = 0
+                    for col_name in school_df.columns:
+                        if col_name not in categorized_cols and col_name != "學校名稱": # 避免重複
+                            if pd.notna(row.get(col_name)) and str(row.get(col_name)).strip() and str(row.get(col_name)).lower() not in ['nan', '-']:
+                                with sub_cols[i % 3]:
+                                    display_info(col_name, row.get(col_name))
+                                i += 1
+                                other_cols_exist = True
+                    if not other_cols_exist:
+                        st.info("沒有其他資料可顯示。")
 
-                    # --- 相關文章 ---
+
+                    # 顯示相關文章
                     related_articles = article_df[article_df["學校名稱"] == row["學校名稱"]]
                     if not related_articles.empty:
                         st.markdown("---")
@@ -214,4 +208,3 @@ if school_df is not None and article_df is not None:
                             link = article_row.get('文章連結')
                             if pd.notna(title) and pd.notna(link):
                                 st.markdown(f"- [{title}]({link})")
-            # --- 修改 END ---
