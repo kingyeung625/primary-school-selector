@@ -89,6 +89,7 @@ if school_df is not None and article_df is not None:
         "g1_diverse_assessment": "小一上學期以多元化的進展性評估代替測驗及考試",
         "g2_6_tests": "全年全科測驗次數_二至六年級",
         "g2_6_exams": "全年全科考試次數_二至六年級",
+        "tutorial_session": "按校情靈活編排時間表_盡量在下午安排導修時段_讓學生能在教師指導下完成部分家課"
     }
     
     assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
@@ -102,6 +103,9 @@ if school_df is not None and article_df is not None:
     with hw_col2:
         selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options)
         selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options)
+        # --- 修改 START: 新增導修課選項 ---
+        has_tutorial_session = st.checkbox("學校盡量在下午安排導修時段讓學生能在教師指導下完成部分家課")
+        # --- 修改 END ---
 
     if st.button("搜尋學校", type="primary", use_container_width=True):
         
@@ -116,15 +120,12 @@ if school_df is not None and article_df is not None:
         if selected_language: mask &= school_df["教學語言"].isin(selected_language)
         if selected_net: mask &= school_df["小一學校網"].isin(selected_net)
 
-        # --- 邏輯修正 START ---
         if selected_related:
             related_mask = pd.Series(False, index=school_df.index)
             for col in selected_related:
                 if col in school_df.columns:
-                    # 必須有資料(notna) **而且** 內容不能是 "-"
                     related_mask |= (school_df[col].notna() & (school_df[col] != "-"))
             mask &= related_mask
-        # --- 邏輯修正 END ---
 
         if selected_transport:
             transport_mask = pd.Series(False, index=school_df.index)
@@ -151,6 +152,11 @@ if school_df is not None and article_df is not None:
         
         if use_diverse_assessment:
             mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
+            
+        # --- 修改 START: 加入導修課的篩選邏輯 ---
+        if has_tutorial_session:
+            mask &= (school_df[col_map["tutorial_session"]] == "是")
+        # --- 修改 END ---
 
         filtered_schools = school_df[mask]
 
