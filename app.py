@@ -17,12 +17,21 @@ def load_data():
         
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
-        # 對費用欄位做基本清理
+        # 清理費用欄位
         fee_columns = ["學費", "堂費"]
         for col in fee_columns:
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
-        
+
+        # 清理測驗/考試次數欄位，確保它們是數字
+        assessment_cols = [
+            "全年全科測驗次數_一年級", "全年全科考試次數_一年級",
+            "全年全科測驗次數_二至六年級", "全年全科考試次數_二至六年級"
+        ]
+        for col in assessment_cols:
+            if col in school_df.columns:
+                school_df[col] = pd.to_numeric(school_df[col], errors='coerce').fillna(0).astype(int)
+
         return school_df, article_df
         
     except FileNotFoundError:
@@ -78,37 +87,25 @@ if school_df is not None and article_df is not None:
     # --- 第二類篩選條件 ---
     st.subheader("課業安排")
     
-    # 簡化欄位名稱，方便程式碼中使用
     col_map = {
         "g1_tests": "全年全科測驗次數_一年級",
         "g1_exams": "全年全科考試次數_一年級",
         "g1_diverse_assessment": "小一上學期以多元化的進展性評估代替測驗及考試",
         "g2_6_tests": "全年全科測驗次數_二至六年級",
         "g2_6_exams": "全年全科考試次數_二至六年級",
-        "homework_policy": "制定適切的校本課業政策_讓家長了解相關安排_並定期蒐集教師_學生和家長的意見"
     }
-
-    hw_col1, hw_col2, hw_col3 = st.columns(3)
+    
+    assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
+    hw_col1, hw_col2 = st.columns(2)
 
     with hw_col1:
-        # 處理可能的 NaN 值並轉換為整數，然後排序
-        g1_test_options = sorted(school_df[col_map["g1_tests"]].dropna().unique().astype(int))
-        selected_g1_tests = st.multiselect("一年級測驗次數", g1_test_options, default=[])
-        
-        g2_6_test_options = sorted(school_df[col_map["g2_6_tests"]].dropna().unique().astype(int))
-        selected_g2_6_tests = st.multiselect("二至六年級測驗次數", g2_6_test_options, default=[])
+        selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options)
+        selected_g1_exams = st.selectbox("一年級考試次數", assessment_options)
+        use_diverse_assessment = st.checkbox("小一上學期採多元化評估")
 
     with hw_col2:
-        g1_exam_options = sorted(school_df[col_map["g1_exams"]].dropna().unique().astype(int))
-        selected_g1_exams = st.multiselect("一年級考試次數", g1_exam_options, default=[])
-        
-        g2_6_exam_options = sorted(school_df[col_map["g2_6_exams"]].dropna().unique().astype(int))
-        selected_g2_6_exams = st.multiselect("二至六年級考試次數", g2_6_exam_options, default=[])
-
-    with hw_col3:
-        use_diverse_assessment = st.checkbox("小一上學期採多元化評估")
-        has_homework_policy = st.checkbox("有制定校本課業政策")
-
+        selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options)
+        selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options)
 
     # --- "搜尋學校" 按鈕 ---
     if st.button("搜尋學校", type="primary", use_container_width=True):
@@ -137,15 +134,24 @@ if school_df is not None and article_df is not None:
             mask &= transport_mask
 
         # 課業安排篩選
-        if selected_g1_tests: mask &= school_df[col_map["g1_tests"]].isin(selected_g1_tests)
-        if selected_g1_exams: mask &= school_df[col_map["g1_exams"]].isin(selected_g1_exams)
-        if selected_g2_6_tests: mask &= school_df[col_map["g2_6_tests"]].isin(selected_g2_6_tests)
-        if selected_g2_6_exams: mask &= school_df[col_map["g2_6_exams"]].isin(selected_g2_6_exams)
+        def apply_assessment_filter(mask, column, selection):
+            if selection == "0次":
+                return mask & (school_df[column] == 0)
+            elif selection == "不多於1次":
+                return mask & (school_df[column] <= 1)
+            elif selection == "不多於2次":
+                return mask & (school_df[column] <= 2)
+            elif selection == "3次":
+                return mask & (school_df[column] == 3)
+            return mask # 不限
+
+        mask = apply_assessment_filter(mask, col_map["g1_tests"], selected_g1_tests)
+        mask = apply_assessment_filter(mask, col_map["g1_exams"], selected_g1_exams)
+        mask = apply_assessment_filter(mask, col_map["g2_6_tests"], selected_g2_6_tests)
+        mask = apply_assessment_filter(mask, col_map["g2_6_exams"], selected_g2_6_exams)
         
         if use_diverse_assessment:
             mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
-        if has_homework_policy:
-            mask &= (school_df[col_map["homework_policy"]] == "是")
 
         filtered_schools = school_df[mask]
 
