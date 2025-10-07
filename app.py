@@ -39,7 +39,6 @@ school_df, article_df = load_data()
 if school_df is not None and article_df is not None:
     st.subheader("篩選條件")
 
-    # --- 使用三欄來放置篩選器 ---
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -49,10 +48,8 @@ if school_df is not None and article_df is not None:
         cat1 = sorted(school_df["資助類型"].unique())
         selected_cat1 = st.multiselect("資助類型", cat1, default=[])
         
-        # --- 修改 START: 關聯學校改為複選下拉式選單 ---
         related_school_options = ["一條龍中學", "直屬中學", "聯繫中學"]
         selected_related = st.multiselect("關聯學校類型", related_school_options, default=[])
-        # --- 修改 END ---
 
     with col2:
         genders = sorted(school_df["學生性別"].unique())
@@ -61,10 +58,8 @@ if school_df is not None and article_df is not None:
         session_types = sorted(school_df["上課時間"].unique())
         selected_session = st.multiselect("上課時間", session_types, default=[])
 
-        # --- 修改 START: 校車服務改為複選下拉式選單 ---
         transport_options = ["校車", "保姆車"]
         selected_transport = st.multiselect("校車服務", transport_options, default=[])
-        # --- 修改 END ---
         
     with col3:
         religions = sorted(school_df["宗教"].unique())
@@ -72,6 +67,11 @@ if school_df is not None and article_df is not None:
         
         languages = sorted(school_df["教學語言"].dropna().unique())
         selected_language = st.multiselect("教學語言", languages, default=[])
+
+        # --- 修改 START: 新增小一學校網篩選 ---
+        nets = sorted(school_df["小一學校網"].dropna().unique())
+        selected_net = st.multiselect("小一學校網", nets, default=[])
+        # --- 修改 END ---
 
 
     # --- "搜尋學校" 按鈕 ---
@@ -92,9 +92,12 @@ if school_df is not None and article_df is not None:
         if selected_language:
             mask &= school_df["教學語言"].isin(selected_language)
         
-        # --- 修改 START: 更新關聯學校和校車的篩選邏輯 ---
+        # --- 修改 START: 加入小一學校網的篩選邏輯 ---
+        if selected_net:
+            mask &= school_df["小一學校網"].isin(selected_net)
+        # --- 修改 END ---
+
         if selected_related:
-            # 建立一個暫時的布林遮罩，檢查所選的任一欄位是否有資料 (notna)
             related_mask = pd.Series(False, index=school_df.index)
             for col in selected_related:
                 if col in school_df.columns:
@@ -102,13 +105,11 @@ if school_df is not None and article_df is not None:
             mask &= related_mask
 
         if selected_transport:
-            # 建立一個暫時的布林遮罩，檢查所選的任一欄位值是否為 "有"
             transport_mask = pd.Series(False, index=school_df.index)
             for col in selected_transport:
                 if col in school_df.columns:
                     transport_mask |= (school_df[col] == "有")
             mask &= transport_mask
-        # --- 修改 END ---
 
         filtered_schools = school_df[mask]
 
