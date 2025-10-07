@@ -45,7 +45,6 @@ school_df, article_df = load_data()
 if school_df is not None and article_df is not None:
     
     st.subheader("學校基本資料")
-
     row1_col1, row1_col2, row1_col3 = st.columns(3)
     with row1_col1:
         regions = sorted(school_df["區域"].unique())
@@ -80,7 +79,6 @@ if school_df is not None and article_df is not None:
         selected_transport = st.multiselect("校車服務", transport_options, default=[])
         
     st.divider()
-
     st.subheader("課業安排")
     
     col_map = {
@@ -94,12 +92,10 @@ if school_df is not None and article_df is not None:
     
     assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
     hw_col1, hw_col2 = st.columns(2)
-
     with hw_col1:
         selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options)
         selected_g1_exams = st.selectbox("一年級考試次數", assessment_options)
         use_diverse_assessment = st.checkbox("學校於小一上學期以多元化的進展性評估代替測驗及考試")
-
     with hw_col2:
         selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options)
         selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options)
@@ -108,8 +104,7 @@ if school_df is not None and article_df is not None:
     if st.button("搜尋學校", type="primary", use_container_width=True):
         
         mask = pd.Series(True, index=school_df.index)
-
-        # 學校基本資料篩選
+        # 篩選邏輯... (此處省略未變動的程式碼)
         if selected_region: mask &= school_df["區域"].isin(selected_region)
         if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
         if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
@@ -117,45 +112,30 @@ if school_df is not None and article_df is not None:
         if selected_religion: mask &= school_df["宗教"].isin(selected_religion)
         if selected_language: mask &= school_df["教學語言"].isin(selected_language)
         if selected_net: mask &= school_df["小一學校網"].isin(selected_net)
-
         if selected_related:
             related_mask = pd.Series(False, index=school_df.index)
             for col in selected_related:
                 if col in school_df.columns:
                     related_mask |= (school_df[col].notna() & (school_df[col] != "-"))
             mask &= related_mask
-
         if selected_transport:
             transport_mask = pd.Series(False, index=school_df.index)
             for col in selected_transport:
                 if col in school_df.columns: transport_mask |= (school_df[col] == "有")
             mask &= transport_mask
-
-        # 課業安排篩選
         def apply_assessment_filter(mask, column, selection):
-            if selection == "0次":
-                return mask & (school_df[column] == 0)
-            elif selection == "不多於1次":
-                return mask & (school_df[column] <= 1)
-            elif selection == "不多於2次":
-                return mask & (school_df[column] <= 2)
-            elif selection == "3次":
-                return mask & (school_df[column] == 3)
+            if selection == "0次": return mask & (school_df[column] == 0)
+            elif selection == "不多於1次": return mask & (school_df[column] <= 1)
+            elif selection == "不多於2次": return mask & (school_df[column] <= 2)
+            elif selection == "3次": return mask & (school_df[column] == 3)
             return mask
-
         mask = apply_assessment_filter(mask, col_map["g1_tests"], selected_g1_tests)
         mask = apply_assessment_filter(mask, col_map["g1_exams"], selected_g1_exams)
         mask = apply_assessment_filter(mask, col_map["g2_6_tests"], selected_g2_6_tests)
         mask = apply_assessment_filter(mask, col_map["g2_6_exams"], selected_g2_6_exams)
+        if use_diverse_assessment: mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
+        if has_tutorial_session: mask &= (school_df[col_map["tutorial_session"]] == "有")
         
-        if use_diverse_assessment:
-            mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
-            
-        # --- 邏輯修正 START: 將篩選條件從 "是" 改為 "有" ---
-        if has_tutorial_session:
-            mask &= (school_df[col_map["tutorial_session"]] == "有")
-        # --- 邏輯修正 END ---
-
         filtered_schools = school_df[mask]
 
         st.divider()
@@ -164,15 +144,44 @@ if school_df is not None and article_df is not None:
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            st.dataframe(filtered_schools)
-            st.divider()
-            st.subheader("相關文章")
-            selected_school_name = st.selectbox("從上方篩選結果中，選擇一所學校查看相關文章", filtered_schools["學校名稱"].unique())
+            # --- 修改 START: 全新的卡片式顯示方式 ---
+            for index, row in filtered_schools.iterrows():
+                # 每個學校都是一個可展開的容器
+                with st.expander(f"**{row['學校名稱']}** ({row['區域']})"):
+                    
+                    # 內部使用分欄來排版
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("##### **學校資料**")
+                        st.markdown(f"**地址：** {row.get('學校地址', 'N/A')}")
+                        st.markdown(f"**小一學校網：** {row.get('小一學校網', 'N/A')}")
+                        st.markdown(f"**資助類型：** {row.get('資助類型', 'N/A')}")
+                        st.markdown(f"**學生性別：** {row.get('學生性別', 'N/A')}")
+                        st.markdown(f"**宗教：** {row.get('宗教', 'N/A')}")
+                        
+                    with col2:
+                        st.markdown("##### **聯繫方式**")
+                        st.markdown(f"**電話：** {row.get('學校電話', 'N/A')}")
+                        st.markdown(f"**傳真：** {row.get('學校傳真', 'N/A')}")
+                        if pd.notna(row.get('學校網址')):
+                            st.markdown(f"**學校網址：** [{row.get('學校網址')}]({row.get('學校網址')})")
 
-            if selected_school_name:
-                related_articles = article_df[article_df["學校名稱"] == selected_school_name]
-                if not related_articles.empty:
-                    for _, row in related_articles.iterrows():
-                        st.markdown(f"[{row['文章標題']}]({row['文章連結']})")
-                else:
-                    st.write("暫無此學校的相關文章。")
+                    st.markdown("---")
+                    
+                    # 顯示其他重要資訊
+                    st.markdown("##### **學業評估**")
+                    st.text(f"一年級測驗及考試次數：{row.get(col_map['g1_tests'], 0)}測 / {row.get(col_map['g1_exams'], 0)}考")
+                    st.text(f"二至六年級測驗及考試次數：{row.get(col_map['g2_6_tests'], 0)}測 / {row.get(col_map['g2_6_exams'], 0)}考")
+
+                    # 整合相關文章
+                    related_articles = article_df[article_df["學校名稱"] == row["學校名稱"]]
+                    if not related_articles.empty:
+                        st.markdown("##### **相關文章**")
+                        for _, article_row in related_articles.iterrows():
+                            # 確保文章標題和連結存在
+                            title = article_row.get('文章標題')
+                            link = article_row.get('文章連結')
+                            if pd.notna(title) and pd.notna(link):
+                                st.markdown(f"- [{title}]({link})")
+            # --- 修改 END ---
