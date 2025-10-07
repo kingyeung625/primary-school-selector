@@ -18,9 +18,10 @@ def load_data():
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
         # 數據清理
-        fee_columns = ["學費", "堂費"]
+        fee_columns = ["學費", "堂費", "家長教師會費"]
         for col in fee_columns:
             if col in school_df.columns:
+                # 先處理非數字字元，再轉換為數字
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
         assessment_cols = [
@@ -163,10 +164,16 @@ if school_df is not None and article_df is not None:
                 "學業評估與安排": list(col_map.values()),
                 "師資概況": ["上學年核准編制教師職位數目", "上學年教師總人數", "上學年已接受師資培训人數百分率", "上學年學士人數百分率", "上學年碩士_博士或以上人數百分率", "上學年特殊教育培訓人數百分率"],
                 "學校設施": ["課室數目", "禮堂數目", "操場數目", "圖書館數目", "特別室", "其他學校設施", "支援有特殊教育需要學生的設施"],
-                "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色"],
-                "費用": ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
+                "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色"]
             }
             categorized_cols = set(col for cols in categories.values() for col in cols)
+            
+            # --- 修改 START: 將費用相關欄位獨立出來 ---
+            fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
+            # 從已分類的欄位中移除費用欄位，避免重複顯示
+            categorized_cols.update(fee_cols)
+            # --- 修改 END ---
+
 
             for index, row in filtered_schools.iterrows():
                 with st.expander(f"**{row['學校名稱']}**"):
@@ -181,18 +188,29 @@ if school_df is not None and article_df is not None:
                                     with sub_cols[i % 3]:
                                         display_info(col_name, row.get(col_name))
                     
-                    # --- 修改 START: 以轉置表格顯示班級結構 ---
                     st.markdown("##### 班級結構")
                     grades_display = ["小一", "小二", "小三", "小四", "小五", "小六", "總數"]
-                    grades_internal = ["小一", "小二", "小三", "小四", "小五", "小六", "總"] # 用於讀取欄位
-                    
+                    grades_internal = ["小一", "小二", "小三", "小四", "小五", "小六", "總"]
                     last_year_data = [row.get(f"上學年{g}班數", 0) for g in grades_internal]
                     this_year_data = [row.get(f"本學年{g}班數", 0) for g in grades_internal]
-
-                    class_df = pd.DataFrame([last_year_data, this_year_data],
-                                            columns=grades_display,
-                                            index=["上學年班數", "本學年班數"])
+                    class_df = pd.DataFrame([last_year_data, this_year_data], columns=grades_display, index=["上學年班數", "本學年班數"])
                     st.table(class_df)
+
+                    # --- 修改 START: 以表格形式顯示費用 ---
+                    st.markdown("##### 費用")
+                    fee_data = {}
+                    for col in fee_cols:
+                        value = row.get(col)
+                        if pd.notna(value):
+                            if isinstance(value, (int, float)) and value == 0:
+                                fee_data[col] = "沒有"
+                            else:
+                                fee_data[col] = value if str(value).strip() else "沒有"
+                        else:
+                            fee_data[col] = "沒有"
+                    
+                    fee_df = pd.DataFrame(fee_data.items(), columns=["項目 (Item)", "費用 (Fee)"])
+                    st.table(fee_df.set_index("項目 (Item)"))
                     # --- 修改 END ---
 
                     st.markdown("##### 其他資料")
