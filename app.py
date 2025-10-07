@@ -34,9 +34,10 @@ def load_data():
 school_df, article_df = load_data()
 
 # --- 主應用程式 ---
-if school_df is not- None and article_df is not None:
+# --- 錯誤修正 START ---
+if school_df is not None and article_df is not None:
+# --- 錯誤修正 END ---
     
-    # --- 修改 START: 重新排序篩選條件 ---
     st.subheader("學校基本資料")
 
     # 第一行
@@ -74,7 +75,6 @@ if school_df is not- None and article_df is not None:
     with row3_col3:
         transport_options = ["校車", "保姆車"]
         selected_transport = st.multiselect("校車服務", transport_options, default=[])
-    # --- 修改 END ---
 
 
     # --- "搜尋學校" 按鈕 ---
