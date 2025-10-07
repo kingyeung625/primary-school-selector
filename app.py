@@ -15,19 +15,14 @@ def load_data():
         school_df = pd.read_csv("database - 學校資料.csv")
         article_df = pd.read_csv("database - 相關文章.csv")
         
-        # --- 資料清理與預處理 ---
+        # 重新命名欄位
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
-
+        
+        # 即使不篩選，也對費用欄位做基本清理，以防未來顯示時出錯
         fee_columns = ["學費", "堂費"]
         for col in fee_columns:
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
-
-        related_cols = ["一條龍中學", "直屬中學", "聯繫中學"]
-        school_df["有關聯學校"] = school_df[related_cols].notna().any(axis=1)
-        
-        transport_cols = ["校車", "保姆車"]
-        school_df["有校車服務"] = (school_df[transport_cols] == "有").any(axis=1)
         
         return school_df, article_df
         
@@ -44,7 +39,8 @@ school_df, article_df = load_data()
 if school_df is not None and article_df is not None:
     st.subheader("篩選條件")
 
-    col1, col2, col3, col4 = st.columns(4)
+    # --- 使用三欄來放置篩選器 ---
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         regions = sorted(school_df["區域"].unique())
@@ -52,6 +48,11 @@ if school_df is not None and article_df is not None:
         
         cat1 = sorted(school_df["資助類型"].unique())
         selected_cat1 = st.multiselect("資助類型", cat1, default=[])
+        
+        # --- 修改 START: 關聯學校改為複選下拉式選單 ---
+        related_school_options = ["一條龍中學", "直屬中學", "聯繫中學"]
+        selected_related = st.multiselect("關聯學校類型", related_school_options, default=[])
+        # --- 修改 END ---
 
     with col2:
         genders = sorted(school_df["學生性別"].unique())
@@ -59,6 +60,11 @@ if school_df is not None and article_df is not None:
         
         session_types = sorted(school_df["上課時間"].unique())
         selected_session = st.multiselect("上課時間", session_types, default=[])
+
+        # --- 修改 START: 校車服務改為複選下拉式選單 ---
+        transport_options = ["校車", "保姆車"]
+        selected_transport = st.multiselect("校車服務", transport_options, default=[])
+        # --- 修改 END ---
         
     with col3:
         religions = sorted(school_df["宗教"].unique())
@@ -67,15 +73,8 @@ if school_df is not None and article_df is not None:
         languages = sorted(school_df["教學語言"].dropna().unique())
         selected_language = st.multiselect("教學語言", languages, default=[])
 
-    with col4:
-        # --- 修改 START: 將滑桿改為單選按鈕 ---
-        selected_fee_option = st.radio("學費", ["不限", "有", "沒有"], index=0)
-        selected_tfee_option = st.radio("堂費", ["不限", "有", "沒有"], index=0)
-        # --- 修改 END ---
 
-        has_related_school = st.checkbox("只顯示有關聯學校")
-        has_school_bus = st.checkbox("只顯示有校車或保姆車")
-
+    # --- "搜尋學校" 按鈕 ---
     if st.button("搜尋學校", type="primary", use_container_width=True):
         
         mask = pd.Series(True, index=school_df.index)
@@ -93,36 +92,37 @@ if school_df is not None and article_df is not None:
         if selected_language:
             mask &= school_df["教學語言"].isin(selected_language)
         
-        # --- 修改 START: 更新費用篩選邏輯 ---
-        if selected_fee_option == "有":
-            mask &= (school_df["學費"] > 0)
-        elif selected_fee_option == "沒有":
-            mask &= (school_df["學費"] == 0)
+        # --- 修改 START: 更新關聯學校和校車的篩選邏輯 ---
+        if selected_related:
+            # 建立一個暫時的布林遮罩，檢查所選的任一欄位是否有資料 (notna)
+            related_mask = pd.Series(False, index=school_df.index)
+            for col in selected_related:
+                if col in school_df.columns:
+                    related_mask |= school_df[col].notna()
+            mask &= related_mask
 
-        if selected_tfee_option == "有":
-            mask &= (school_df["堂費"] > 0)
-        elif selected_tfee_option == "沒有":
-            mask &= (school_df["堂費"] == 0)
+        if selected_transport:
+            # 建立一個暫時的布林遮罩，檢查所選的任一欄位值是否為 "有"
+            transport_mask = pd.Series(False, index=school_df.index)
+            for col in selected_transport:
+                if col in school_df.columns:
+                    transport_mask |= (school_df[col] == "有")
+            mask &= transport_mask
         # --- 修改 END ---
-
-        if has_related_school:
-            mask &= school_df["有關聯學校"]
-        if has_school_bus:
-            mask &= school_df["有校車服務"]
 
         filtered_schools = school_df[mask]
 
         st.divider()
-        st.subheader("篩選結果")
+        st.subheader(f"篩選結果：共找到 {len(filtered_schools)} 間學校")
         
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            display_cols = [col for col in school_df.columns if col not in ["有關聯學校", "有校車服務"]]
-            st.dataframe(filtered_schools[display_cols])
+            st.dataframe(filtered_schools)
 
             st.divider()
 
+            # --- 顯示相關文章 ---
             st.subheader("相關文章")
             selected_school_name = st.selectbox("從上方篩選結果中，選擇一所學校查看相關文章", filtered_schools["學校名稱"].unique())
 
