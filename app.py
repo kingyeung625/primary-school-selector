@@ -16,19 +16,13 @@ def load_data():
         article_df = pd.read_csv("database - 相關文章.csv")
         
         # --- 資料清理與預處理 ---
-        # 1. 重新命名欄位
-        school_df.rename(columns={
-            "學校類別1": "資助類型",
-            "學校類別2": "上課時間"
-        }, inplace=True)
+        school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
 
-        # 2. 處理費用欄位：轉換為數字，無法轉換的設為0
         fee_columns = ["學費", "堂費"]
         for col in fee_columns:
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
-        # 3. 建立布林值欄位以便篩選
         related_cols = ["一條龍中學", "直屬中學", "聯繫中學"]
         school_df["有關聯學校"] = school_df[related_cols].notna().any(axis=1)
         
@@ -74,25 +68,10 @@ if school_df is not None and article_df is not None:
         selected_language = st.multiselect("教學語言", languages, default=[])
 
     with col4:
-        # --- 錯誤修正 START ---
-        # 為學費滑桿加入安全檢查
-        min_fee, max_fee = 0, 0 # 預設值
-        if "學費" in school_df.columns and not school_df["學費"].empty:
-            min_val = school_df["學費"].min()
-            max_val = school_df["學費"].max()
-            if max_val >= min_val: # 只有在範圍有效時才更新
-                min_fee, max_fee = int(min_val), int(max_val)
-        selected_fee = st.slider("學費範圍", min_fee, max_fee, (min_fee, max_fee))
-        
-        # 為堂費滑桿加入安全檢查
-        min_tfee, max_tfee = 0, 0 # 預設值
-        if "堂費" in school_df.columns and not school_df["堂費"].empty:
-            min_val = school_df["堂費"].min()
-            max_val = school_df["堂費"].max()
-            if max_val >= min_val: # 只有在範圍有效時才更新
-                min_tfee, max_tfee = int(min_val), int(max_val)
-        selected_tfee = st.slider("堂費範圍", min_tfee, max_tfee, (min_tfee, max_tfee))
-        # --- 錯誤修正 END ---
+        # --- 修改 START: 將滑桿改為單選按鈕 ---
+        selected_fee_option = st.radio("學費", ["不限", "有", "沒有"], index=0)
+        selected_tfee_option = st.radio("堂費", ["不限", "有", "沒有"], index=0)
+        # --- 修改 END ---
 
         has_related_school = st.checkbox("只顯示有關聯學校")
         has_school_bus = st.checkbox("只顯示有校車或保姆車")
@@ -114,10 +93,17 @@ if school_df is not None and article_df is not None:
         if selected_language:
             mask &= school_df["教學語言"].isin(selected_language)
         
-        if "學費" in school_df.columns:
-            mask &= school_df["學費"].between(selected_fee[0], selected_fee[1])
-        if "堂費" in school_df.columns:
-            mask &= school_df["堂費"].between(selected_tfee[0], selected_tfee[1])
+        # --- 修改 START: 更新費用篩選邏輯 ---
+        if selected_fee_option == "有":
+            mask &= (school_df["學費"] > 0)
+        elif selected_fee_option == "沒有":
+            mask &= (school_df["學費"] == 0)
+
+        if selected_tfee_option == "有":
+            mask &= (school_df["堂費"] > 0)
+        elif selected_tfee_option == "沒有":
+            mask &= (school_df["堂費"] == 0)
+        # --- 修改 END ---
 
         if has_related_school:
             mask &= school_df["有關聯學校"]
