@@ -103,9 +103,7 @@ if school_df is not None and article_df is not None:
     with hw_col2:
         selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options)
         selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options)
-        # --- 修改 START: 新增導修課選項 ---
         has_tutorial_session = st.checkbox("學校盡量在下午安排導修時段讓學生能在教師指導下完成部分家課")
-        # --- 修改 END ---
 
     if st.button("搜尋學校", type="primary", use_container_width=True):
         
@@ -153,10 +151,10 @@ if school_df is not None and article_df is not None:
         if use_diverse_assessment:
             mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
             
-        # --- 修改 START: 加入導修課的篩選邏輯 ---
+        # --- 邏輯修正 START: 將篩選條件從 "是" 改為 "有" ---
         if has_tutorial_session:
-            mask &= (school_df[col_map["tutorial_session"]] == "是")
-        # --- 修改 END ---
+            mask &= (school_df[col_map["tutorial_session"]] == "有")
+        # --- 邏輯修正 END ---
 
         filtered_schools = school_df[mask]
 
