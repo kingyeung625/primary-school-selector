@@ -17,13 +17,11 @@ def load_data():
         
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
-        # 清理費用欄位
         fee_columns = ["學費", "堂費"]
         for col in fee_columns:
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
-        # 清理測驗/考試次數欄位，確保它們是數字
         assessment_cols = [
             "全年全科測驗次數_一年級", "全年全科考試次數_一年級",
             "全年全科測驗次數_二至六年級", "全年全科考試次數_二至六年級"
@@ -46,7 +44,6 @@ school_df, article_df = load_data()
 # --- 主應用程式 ---
 if school_df is not None and article_df is not None:
     
-    # --- 第一類篩選條件 ---
     st.subheader("學校基本資料")
 
     row1_col1, row1_col2, row1_col3 = st.columns(3)
@@ -84,7 +81,6 @@ if school_df is not None and article_df is not None:
         
     st.divider()
 
-    # --- 第二類篩選條件 ---
     st.subheader("課業安排")
     
     col_map = {
@@ -101,13 +97,14 @@ if school_df is not None and article_df is not None:
     with hw_col1:
         selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options)
         selected_g1_exams = st.selectbox("一年級考試次數", assessment_options)
-        use_diverse_assessment = st.checkbox("小一上學期採多元化評估")
+        # --- 修改 START: 更新 checkbox 的顯示文字 ---
+        use_diverse_assessment = st.checkbox("為學校於小一上學期以多元化的進展性評估代替測驗及考試")
+        # --- 修改 END ---
 
     with hw_col2:
         selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options)
         selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options)
 
-    # --- "搜尋學校" 按鈕 ---
     if st.button("搜尋學校", type="primary", use_container_width=True):
         
         mask = pd.Series(True, index=school_df.index)
@@ -143,7 +140,7 @@ if school_df is not None and article_df is not None:
                 return mask & (school_df[column] <= 2)
             elif selection == "3次":
                 return mask & (school_df[column] == 3)
-            return mask # 不限
+            return mask
 
         mask = apply_assessment_filter(mask, col_map["g1_tests"], selected_g1_tests)
         mask = apply_assessment_filter(mask, col_map["g1_exams"], selected_g1_exams)
