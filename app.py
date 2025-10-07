@@ -98,7 +98,7 @@ if school_df is not None and article_df is not None:
         selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options)
         selected_g1_exams = st.selectbox("一年級考試次數", assessment_options)
         # --- 修改 START: 更新 checkbox 的顯示文字 ---
-        use_diverse_assessment = st.checkbox("為學校於小一上學期以多元化的進展性評估代替測驗及考試")
+        use_diverse_assessment = st.checkbox("學校於小一上學期以多元化的進展性評估代替測驗及考試")
         # --- 修改 END ---
 
     with hw_col2:
