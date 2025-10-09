@@ -10,7 +10,7 @@ st.title("香港小學選校篩選器")
 
 # --- 初始化 Session State ---
 if 'search_mode' not in st.session_state:
-    st.session_state.search_mode = False
+    st.session_state.search_mode = False 
 if 'filtered_schools' not in st.session_state:
     st.session_state.filtered_schools = pd.DataFrame()
 
@@ -20,14 +20,19 @@ def load_data():
     try:
         school_df = pd.read_csv("database - 學校資料.csv")
         article_df = pd.read_csv("database - 相關文章.csv")
+        
+        # --- 修改 START: 清理欄位名稱本身多餘的空格 ---
+        school_df.columns = school_df.columns.str.strip()
+        article_df.columns = article_df.columns.str.strip()
+        # --- 修改 END ---
 
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
-
+        
         # 數據清理
         for col in school_df.select_dtypes(include=['object']).columns:
             if school_df[col].dtype == 'object':
                 school_df[col] = school_df[col].str.replace('<br>', '\n', regex=False).str.strip()
-
+        
         if '學校名稱' in school_df.columns:
             school_df['學校名稱'] = school_df['學校名稱'].str.replace(r'\s+', ' ', regex=True).str.strip()
 
@@ -40,18 +45,18 @@ def load_data():
         for col in assessment_cols:
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col], errors='coerce').fillna(0).astype(int)
-
+        
         for year in ["上學年", "本學年"]:
             for grade in ["小一", "小二", "小三", "小四", "小五", "小六", "總"]:
                 col_name = f"{year}{grade}班數"
                 if col_name in school_df.columns:
                     school_df[col_name] = pd.to_numeric(school_df[col_name], errors='coerce').fillna(0).astype(int)
-
+        
         if "學校佔地面積" in school_df.columns:
             school_df["學校佔地面積"] = pd.to_numeric(school_df["學校佔地面積"], errors='coerce').fillna(0)
 
         return school_df, article_df
-
+        
     except FileNotFoundError:
         st.error("錯誤：找不到資料檔案。請確保 'database - 學校資料.csv' 和 'database - 相關文章.csv' 檔案與 app.py 在同一個資料夾中。")
         return None, None
@@ -60,8 +65,8 @@ def load_data():
         return None, None
 
 # --- 輔助函數 ---
-LABEL_MAP = {
-    "校監_校管會主席姓名": "校監／校管會主席姓名",
+LABEL_MAP = { 
+    "校監_校管會主席姓名": "校監／校管會主席姓名", 
     "校長姓名": "校長",
     "舊生會_校友會": "舊生會／校友會"
 }
@@ -88,13 +93,13 @@ if school_df is not None and article_df is not None:
     if not st.session_state.search_mode:
         st.subheader("根據學校名稱搜尋")
         school_name_query = st.text_input("輸入學校名稱關鍵字", key="school_name_search", label_visibility="collapsed")
-
+        
         st.subheader("根據學校基本資料篩選")
         row1_col1, row1_col2, row1_col3 = st.columns(3)
         with row1_col1: selected_region = st.multiselect("區域", sorted(school_df["區域"].unique()), key="region")
         with row1_col2: selected_net = st.multiselect("小一學校網", sorted(school_df["小一學校網"].dropna().unique()), key="net")
         with row1_col3: selected_cat1 = st.multiselect("資助類型", sorted(school_df["資助類型"].unique()), key="cat1")
-
+        
         row2_col1, row2_col2, row2_col3 = st.columns(3)
         with row2_col1: selected_gender = st.multiselect("學生性別", sorted(school_df["學生性別"].unique()), key="gender")
         with row2_col2: selected_religion = st.multiselect("宗教", sorted(school_df["宗教"].unique()), key="religion")
@@ -117,11 +122,11 @@ if school_df is not None and article_df is not None:
             selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options, key="g2_6_tests")
             selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options, key="g2_6_exams")
             has_tutorial_session = st.checkbox("學校盡量在下午安排導修時段讓學生能在教師指導下完成部分家課", key="tutorial")
-
+        
         st.text("")
         if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
             st.session_state.search_mode = True
-
+            
             mask = pd.Series(True, index=school_df.index)
             query = school_name_query.strip()
             if query: mask &= school_df["學校名稱"].str.contains(query, case=False, na=False)
@@ -154,7 +159,7 @@ if school_df is not None and article_df is not None:
             mask = apply_assessment_filter(mask, col_map["g2_6_exams"], selected_g2_6_exams)
             if use_diverse_assessment: mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
             if has_tutorial_session: mask &= (school_df[col_map["tutorial_session"]] == "有")
-
+            
             st.session_state.filtered_schools = school_df[mask]
             st.rerun()
 
@@ -166,21 +171,21 @@ if school_df is not None and article_df is not None:
         st.divider()
         filtered_schools = st.session_state.filtered_schools
         st.subheader(f"篩選結果：共找到 {len(filtered_schools)} 間學校")
-
+        
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
             base_info_cols = [
-                "區域", "小一學校網", "資助類型", "上課時間", "學生性別",
-                "創校年份", "校訓", "宗教", "學校佔地面積",
+                "區域", "小一學校網", "資助類型", "上課時間", "學生性別", 
+                "創校年份", "校訓", "宗教", "學校佔地面積", 
                 "辦學團體", "校監_校管會主席姓名", "校長姓名", "家長教師會", "舊生會_校友會",
                 "一般上學時間", "一般放學時間", "午膳開始時間", "午膳結束時間", "午膳安排"
             ]
             other_categories = {
                 "學校特色": ["一條龍中學", "直屬中學", "聯繫中學"],
                 "師資概況": [
-                    "上學年核准編制教師職位數目", "上學年教師總人數",
-                    "上學年已接受師資培训人數百分率", "上學年學士人數百分率",
+                    "上學年核准編制教師職位數目", "上學年教師總人數", 
+                    "上學年已接受師資培训人數百分率", "上學年學士人數百分率", 
                     "上學年碩士_博士或以上人數百分率", "上學年特殊教育培訓人數百分率",
                     "上學年0至4年年資人數百分率", "上學年5至9年年資人數百分率", "上學年10年年資或以上人數百分率"
                 ],
@@ -189,8 +194,7 @@ if school_df is not None and article_df is not None:
             contact_cols = ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"]
             facility_cols = ["課室數目", "禮堂數目", "操場數目", "圖書館數目", "特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
             fee_cols = {"學費": "學費", "堂費": "堂費", "家長教師會費": "家長教師會費", "非標準項目的核准收費": "非標準項目的核准收費", "其他收費_費用": "其他"}
-
-            # --- 修改 START: 將所有超連結欄位加入排除列表 ---
+            
             excluded_cols = set(base_info_cols)
             excluded_cols.update(col for cols in other_categories.values() for col in cols)
             excluded_cols.update(contact_cols)
@@ -204,15 +208,14 @@ if school_df is not None and article_df is not None:
                 "學校管理超連結：", "學校關注事項超連結：", "教學規劃超連結：", 
                 "學生支援超連結：", "家校合作及校風超連結：", "未來發展超連結："
             ])
-            # --- 修改 END ---
 
             for index, row in filtered_schools.iterrows():
                 with st.expander(f"**{row['學校名稱']}**"):
-
+                    
                     with st.expander("基本資料", expanded=True):
                         c1, c2, c3 = st.columns(3)
                         with c1: display_info("區域", row.get("區域"))
-                        with c2:
+                        with c2: 
                             net_display = "不適用" if row.get("小一學校網") == "/" else row.get("小一學校網")
                             display_info("小一學校網", net_display)
                         
