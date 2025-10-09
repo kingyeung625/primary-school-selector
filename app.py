@@ -24,7 +24,7 @@ def load_data():
         school_df.columns = school_df.columns.str.strip()
         article_df.columns = article_df.columns.str.strip()
         
-        school_df.rename(columns={"學校類別1": "資助類型", "學校類-別2": "上課時間"}, inplace=True)
+        school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
         for col in school_df.select_dtypes(include=['object']).columns:
             if school_df[col].dtype == 'object':
@@ -65,11 +65,7 @@ def load_data():
 LABEL_MAP = { 
     "校監_校管會主席姓名": "校監／校管會主席姓名", 
     "校長姓名": "校長",
-    "舊生會_校友會": "舊生會／校友會",
-    "上課時間_": "一般上學時間",
-    "放學時間": "一般放學時間",
-    "午膳時間": "午膳開始時間",
-    "午膳結束時間": "午膳結束時間",
+    "舊生會_校友會": "舊生會／校友會"
 }
 def display_info(label, value):
     display_label = LABEL_MAP.get(label, label)
@@ -180,7 +176,6 @@ if school_df is not None and article_df is not None:
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            # --- 修改 START: 統一使用真實欄位名定義分類 ---
             base_info_cols = [
                 "區域", "小一學校網", "資助類型", "上課時間", "學生性別", 
                 "創校年份", "校訓", "宗教", "學校佔地面積", 
@@ -210,14 +205,12 @@ if school_df is not None and article_df is not None:
                 "制定校本課業政策": col_map["homework_policy"]
             }
 
-            # 建立一個包含所有已被分類顯示的欄位的集合
             excluded_cols = set(base_info_cols)
             excluded_cols.update(col for cols in other_categories.values() for col in cols)
             excluded_cols.update(contact_cols)
             excluded_cols.update(facility_cols)
             excluded_cols.update(fee_cols.keys())
             excluded_cols.update(assessment_display_map.values())
-            # 手動排除一些輔助性或不需顯示的欄位
             excluded_cols.update([
                 "校車", "保姆車", "校監_校管會主席稱謂", "校長稱謂", "法團校董會",
                 "校監和校董_校管會主席和成員的培訓達標率", "其他宗教",
@@ -225,13 +218,23 @@ if school_df is not None and article_df is not None:
                 "學校管理超連結：", "學校關注事項超連結：", "教學規劃超連結：", 
                 "學生支援超連結：", "家校合作及校風超連結：", "未來發展超連結："
             ])
-            # --- 修改 END ---
 
             for index, row in filtered_schools.iterrows():
                 with st.expander(f"**{row['學校名稱']}**"):
                     
-                    with st.expander("基本資料", expanded=True):
-                        # ... (顯示邏輯與前一版相同)
+                    # --- 修改 START: 將相關文章前置 ---
+                    related_articles = article_df[article_df["學校名稱"] == row["學校名稱"]]
+                    if not related_articles.empty:
+                        with st.expander("相關文章", expanded=True):
+                            for _, article_row in related_articles.iterrows():
+                                title, link = article_row.get('文章標題'), article_row.get('文章連結')
+                                if pd.notna(title) and pd.notna(link):
+                                    with st.container(border=True):
+                                        st.markdown(f"[{title}]({link})")
+                    # --- 修改 END ---
+
+                    with st.expander("基本資料"):
+                        # ...
                         c1, c2, c3 = st.columns(3)
                         with c1: display_info("區域", row.get("區域"))
                         with c2: 
@@ -277,7 +280,7 @@ if school_df is not None and article_df is not None:
                         with c1: display_info("家長教師會", row.get("家長教師會"))
                         with c2: display_info("舊生會／校友會", row.get("舊生會_校友會"))
                         
-                        st.markdown("---") # 用分隔線區分時間資訊
+                        st.markdown("---")
                         
                         c1, c2 = st.columns(2)
                         with c1: display_info("上課時間_", row.get("上課時間_"))
@@ -352,24 +355,16 @@ if school_df is not None and article_df is not None:
                             fee_data.append({"項目": col_display, "費用": display_value})
                         if any(item["費用"] != "沒有" for item in fee_data): st.table(pd.DataFrame(fee_data).set_index("項目"))
                         else: st.info("沒有費用資料可顯示。")
-
+                    
+                    # --- 修改 START: 補充資料改為單欄顯示 ---
                     with st.expander("補充資料"):
                         other_cols_exist = False
-                        sub_cols = st.columns(3)
-                        i = 0
                         for col_name in school_df.columns:
                             if col_name not in excluded_cols and "班數" not in col_name:
-                                if pd.notna(row.get(col_name)) and str(row.get(col_name)).strip() and str(row.get(col_name)).lower() not in ['nan', '-']:
-                                    with sub_cols[i % 3]:
-                                        display_info(col_name, row.get(col_name))
-                                    i += 1
+                                value = row.get(col_name)
+                                if pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']:
+                                    display_info(col_name, value)
                                     other_cols_exist = True
-                        if not other_cols_exist: st.info("沒有其他補充資料可顯示。")
-
-                    related_articles = article_df[article_df["學校名稱"] == row["學校名稱"]]
-                    if not related_articles.empty:
-                        with st.expander("相關文章"):
-                            for _, article_row in related_articles.iterrows():
-                                title, link = article_row.get('文章標題'), article_row.get('文章連結')
-                                if pd.notna(title) and pd.notna(link):
-                                    st.markdown(f"- [{title}]({link})")
+                        if not other_cols_exist:
+                            st.info("沒有其他補充資料可顯示。")
+                    # --- 修改 END ---
