@@ -23,7 +23,7 @@ def load_data():
         
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
-        # 數據清理
+        # 數據清理...
         fee_columns = ["學費", "堂費", "家長教師會費"]
         for col in fee_columns:
             if col in school_df.columns:
@@ -59,19 +59,22 @@ school_df, article_df = load_data()
 # --- 主應用程式 ---
 if school_df is not None and article_df is not None:
 
-    # --- 錯誤修正 START: 在頂層定義 col_map ---
     col_map = {
         "g1_tests": "全年全科測驗次數_一年級", "g1_exams": "全年全科考試次數_一年級",
         "g1_diverse_assessment": "小一上學期以多元化的進展性評估代替測驗及考試",
         "g2_6_tests": "全年全科測驗次數_二至六年級", "g2_6_exams": "全年全科考試次數_二至六年級",
         "tutorial_session": "按校情靈活編排時間表_盡量在下午安排導修時段_讓學生能在教師指導下完成部分家課"
     }
-    # --- 錯誤修正 END ---
 
     # ==================================================================
     # 模式一：顯示篩選器
     # ==================================================================
     if not st.session_state.search_mode:
+        # --- 修改 START: 新增文字搜尋框 ---
+        st.subheader("根據學校名稱搜尋")
+        school_name_query = st.text_input("輸入學校名稱關鍵字", key="school_name_search", label_visibility="collapsed")
+        # --- 修改 END ---
+
         st.subheader("根據學校基本資料篩選")
         row1_col1, row1_col2, row1_col3 = st.columns(3)
         with row1_col1: selected_region = st.multiselect("區域", sorted(school_df["區域"].unique()), key="region")
@@ -107,8 +110,15 @@ if school_df is not None and article_df is not None:
             
             # 執行篩選
             mask = pd.Series(True, index=school_df.index)
+            
+            # --- 修改 START: 加入文字搜尋的篩選邏輯 ---
+            if school_name_query:
+                mask &= school_df["學校名稱"].str.contains(school_name_query, case=False, na=False)
+            # --- 修改 END ---
+
             if selected_region: mask &= school_df["區域"].isin(selected_region)
             if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
+            # ... (其他篩選邏輯)
             if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
             if selected_session: mask &= school_df["上課時間"].isin(selected_session)
             if selected_religion: mask &= school_df["宗教"].isin(selected_religion)
@@ -155,6 +165,7 @@ if school_df is not None and article_df is not None:
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
+            # --- 顯示方式 (與前一版相同) ---
             categories = {
                 "基本資料": ["區域", "小一學校網", "資助類型", "學生性別", "宗教", "上課時間", "創校年份", "校訓"],
                 "聯繫方式": ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"],
