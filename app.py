@@ -8,6 +8,13 @@ st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 # --- 主標題 ---
 st.title("香港小學選校篩選器")
 
+# --- 初始化 Session State ---
+# 用於追蹤搜尋狀態和篩選器的展開/收合
+if 'search_active' not in st.session_state:
+    st.session_state.search_active = False
+if 'active_filters' not in st.session_state:
+    st.session_state.active_filters = {}
+
 # --- 載入與處理資料 ---
 @st.cache_data
 def load_data():
@@ -56,66 +63,60 @@ school_df, article_df = load_data()
 # --- 主應用程式 ---
 if school_df is not None and article_df is not None:
     
-    # --- 篩選器介面 ---
-    st.subheader("學校基本資料")
-    row1_col1, row1_col2, row1_col3 = st.columns(3)
-    with row1_col1:
-        regions = sorted(school_df["區域"].unique())
-        selected_region = st.multiselect("區域", regions, default=[])
-    with row1_col2:
-        nets = sorted(school_df["小一學校網"].dropna().unique())
-        selected_net = st.multiselect("小一學校網", nets, default=[])
-    with row1_col3:
-        cat1 = sorted(school_df["資助類型"].unique())
-        selected_cat1 = st.multiselect("資助類型", cat1, default=[])
-
-    row2_col1, row2_col2, row2_col3 = st.columns(3)
-    with row2_col1:
-        genders = sorted(school_df["學生性別"].unique())
-        selected_gender = st.multiselect("學生性別", genders, default=[])
-    with row2_col2:
-        religions = sorted(school_df["宗教"].unique())
-        selected_religion = st.multiselect("宗教", religions, default=[])
-    with row2_col3:
-        session_types = sorted(school_df["上課時間"].unique())
-        selected_session = st.multiselect("上課時間", session_types, default=[])
-
-    row3_col1, row3_col2, row3_col3 = st.columns(3)
-    with row3_col1:
-        languages = sorted(school_df["教學語言"].dropna().unique())
-        selected_language = st.multiselect("教學語言", languages, default=[])
-    with row3_col2:
-        related_school_options = ["一條龍中學", "直屬中學", "聯繫中學"]
-        selected_related = st.multiselect("關聯學校類型", related_school_options, default=[])
-    with row3_col3:
-        transport_options = ["校車", "保姆車"]
-        selected_transport = st.multiselect("校車服務", transport_options, default=[])
-        
-    st.divider()
-    st.subheader("課業安排")
+    # 根據 session_state 決定 expander 是否預設展開
+    expand_filters = not st.session_state.search_active
     
-    col_map = {
-        "g1_tests": "全年全科測驗次數_一年級", "g1_exams": "全年全科考試次數_一年級",
-        "g1_diverse_assessment": "小一上學期以多元化的進展性評估代替測驗及考試",
-        "g2_6_tests": "全年全科測驗次數_二至六年級", "g2_6_exams": "全年全科考試次數_二至六年級",
-        "tutorial_session": "按校情靈活編排時間表_盡量在下午安排導修時段_讓學生能在教師指導下完成部分家課"
-    }
-    
-    assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
-    hw_col1, hw_col2 = st.columns(2)
-    with hw_col1:
-        selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options)
-        selected_g1_exams = st.selectbox("一年級考試次數", assessment_options)
-        use_diverse_assessment = st.checkbox("學校於小一上學期以多元化的進展性評估代替測驗及考試")
-    with hw_col2:
-        selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options)
-        selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options)
-        has_tutorial_session = st.checkbox("學校盡量在下午安排導修時段讓學生能在教師指導下完成部分家課")
+    with st.expander("第一步：設定學校基本資料篩選條件", expanded=expand_filters):
+        # ... (篩選器元件程式碼與之前相同)
+        row1_col1, row1_col2, row1_col3 = st.columns(3)
+        with row1_col1: selected_region = st.multiselect("區域", sorted(school_df["區域"].unique()), default=[])
+        with row1_col2: selected_net = st.multiselect("小一學校網", sorted(school_df["小一學校網"].dropna().unique()), default=[])
+        with row1_col3: selected_cat1 = st.multiselect("資助類型", sorted(school_df["資助類型"].unique()), default=[])
+        row2_col1, row2_col2, row2_col3 = st.columns(3)
+        with row2_col1: selected_gender = st.multiselect("學生性別", sorted(school_df["學生性別"].unique()), default=[])
+        with row2_col2: selected_religion = st.multiselect("宗教", sorted(school_df["宗教"].unique()), default=[])
+        with row2_col3: selected_session = st.multiselect("上課時間", sorted(school_df["上課時間"].unique()), default=[])
+        row3_col1, row3_col2, row3_col3 = st.columns(3)
+        with row3_col1: selected_language = st.multiselect("教學語言", sorted(school_df["教學語言"].dropna().unique()), default=[])
+        with row3_col2: selected_related = st.multiselect("關聯學校類型", ["一條龍中學", "直屬中學", "聯繫中學"], default=[])
+        with row3_col3: selected_transport = st.multiselect("校車服務", ["校車", "保姆車"], default=[])
 
-    if st.button("搜尋學校", type="primary", use_container_width=True):
+    with st.expander("第二步：設定課業安排篩選條件", expanded=expand_filters):
+        # ... (篩選器元件程式碼與之前相同)
+        col_map = {
+            "g1_tests": "全年全科測驗次數_一年級", "g1_exams": "全年全科考試次數_一年級",
+            "g1_diverse_assessment": "小一上學期以多元化的進展性評估代替測驗及考試",
+            "g2_6_tests": "全年全科測驗次數_二至六年級", "g2_6_exams": "全年全科考試次數_二至六年級",
+            "tutorial_session": "按校情靈活編排時間表_盡量在下午安排導修時段_讓學生能在教師指導下完成部分家課"
+        }
+        assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
+        hw_col1, hw_col2 = st.columns(2)
+        with hw_col1:
+            selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options)
+            selected_g1_exams = st.selectbox("一年級考試次數", assessment_options)
+            use_diverse_assessment = st.checkbox("學校於小一上學期以多元化的進展性評估代替測驗及考試")
+        with hw_col2:
+            selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options)
+            selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options)
+            has_tutorial_session = st.checkbox("學校盡量在下午安排導修時段讓學生能在教師指導下完成部分家課")
+
+    st.text("") 
+    if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
+        st.session_state.search_active = True
         
+        # 儲存當前有效的篩選條件，用於後續顯示摘要
+        active_filters = {
+            "區域": selected_region, "小一學校網": selected_net, "資助類型": selected_cat1,
+            "學生性別": selected_gender, "宗教": selected_religion, "上課時間": selected_session,
+            "教學語言": selected_language, "關聯學校類型": selected_related, "校車服務": selected_transport,
+            "一年級測驗次數": selected_g1_tests, "一年級考試次數": selected_g1_exams,
+            "二至六年級測驗次數": selected_g2_6_tests, "二至六年級考試次數": selected_g2_6_exams,
+            "小一多元化評估": use_diverse_assessment, "下午設導修課": has_tutorial_session
+        }
+        st.session_state.active_filters = active_filters
+
+        # 執行篩選...
         mask = pd.Series(True, index=school_df.index)
-        # --- 篩選邏輯 ---
         if selected_region: mask &= school_df["區域"].isin(selected_region)
         if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
         if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
@@ -146,15 +147,46 @@ if school_df is not None and article_df is not None:
         if use_diverse_assessment: mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
         if has_tutorial_session: mask &= (school_df[col_map["tutorial_session"]] == "有")
         
-        filtered_schools = school_df[mask]
+        # 將篩選結果也儲存在 session state，以便後續使用
+        st.session_state.filtered_schools = school_df[mask]
 
+    # --- 顯示結果的區塊 ---
+    if st.session_state.search_active:
         st.divider()
+
+        # --- 顯示篩選摘要 ---
+        summary_container = st.container(border=True)
+        with summary_container:
+            st.markdown("**目前篩選條件**")
+            summary_items = []
+            for key, value in st.session_state.active_filters.items():
+                if isinstance(value, list) and value:
+                    summary_items.append(f"{key}：`{'`, `'.join(value)}`")
+                elif isinstance(value, str) and value != "不限":
+                    summary_items.append(f"{key}：`{value}`")
+                elif isinstance(value, bool) and value:
+                    summary_items.append(f"`{key}`")
+            
+            if summary_items:
+                # 使用分欄顯示摘要，使其更緊湊
+                cols_per_row = 4
+                for i in range(0, len(summary_items), cols_per_row):
+                    cols = st.columns(cols_per_row)
+                    for j in range(cols_per_row):
+                        if i + j < len(summary_items):
+                            cols[j].markdown(summary_items[i+j])
+            else:
+                st.text("沒有設定任何篩選條件。")
+
+        filtered_schools = st.session_state.get('filtered_schools', pd.DataFrame())
         st.subheader(f"篩選結果：共找到 {len(filtered_schools)} 間學校")
-        
+
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            # --- 顯示方式 ---
+            # --- 顯示詳細結果的卡片 (程式碼與之前相同) ---
+            # ... (此處省略結果顯示的詳細程式碼，以保持簡潔)
+            pass # 您的結果顯示程式碼放在這裡
             categories = {
                 "基本資料": ["區域", "小一學校網", "資助類型", "學生性別", "宗教", "上課時間", "創校年份", "校訓"],
                 "聯繫方式": ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"],
@@ -190,7 +222,6 @@ if school_df is not None and article_df is not None:
                     class_df = pd.DataFrame([last_year_data, this_year_data], columns=grades_display, index=["上學年班數", "本學年班數"])
                     st.table(class_df)
 
-                    # --- 修改 START: 以轉置及格式化的表格顯示費用 ---
                     st.markdown("##### 費用")
                     formatted_fee_data = {}
                     has_fee_info = False
@@ -200,7 +231,6 @@ if school_df is not None and article_df is not None:
                             if isinstance(value, (int, float)) and value > 0:
                                 formatted_fee_data[col] = f"${int(value)}"
                                 has_fee_info = True
-                            # 處理非數字但有效的收費說明
                             elif not isinstance(value, (int, float)) and str(value).strip() not in ['-', 'nan', '0']:
                                 formatted_fee_data[col] = value
                                 has_fee_info = True
@@ -214,7 +244,6 @@ if school_df is not None and article_df is not None:
                         st.table(fee_df)
                     else:
                         st.info("沒有費用資料可顯示。")
-                    # --- 修改 END ---
 
                     st.markdown("##### 其他資料")
                     other_cols_exist = False
