@@ -21,11 +21,10 @@ def load_data():
         school_df = pd.read_csv("database - 學校資料.csv")
         article_df = pd.read_csv("database - 相關文章.csv")
         
-        # --- 修改 START: 清理欄位名稱本身多餘的空格 ---
+        # 清理欄位名稱
         school_df.columns = school_df.columns.str.strip()
         article_df.columns = article_df.columns.str.strip()
-        # --- 修改 END ---
-
+        
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
         # 數據清理
@@ -87,7 +86,11 @@ if school_df is not None and article_df is not None:
         "g1_tests": "全年全科測驗次數_一年級", "g1_exams": "全年全科考試次數_一年級",
         "g1_diverse_assessment": "小一上學期以多元化的進展性評估代替測驗及考試",
         "g2_6_tests": "全年全科測驗次數_二至六年級", "g2_6_exams": "全年全科考試次數_二至六年級",
-        "tutorial_session": "按校情靈活編排時間表_盡量在下午安排導修時段_讓學生能在教師指導下完成部分家課"
+        "tutorial_session": "按校情靈活編排時間表_盡量在下午安排導修時段_讓學生能在教師指導下完成部分家課",
+        "no_test_after_holiday": "避免緊接在長假期後安排測考_讓學生在假期有充分的休息",
+        "policy_on_web": "將校本課業政策上載至學校網頁_讓公眾及持份者知悉",
+        "homework_policy": "制定適切的校本課業政策_讓家長了解相關安排_並定期蒐集教師_學生和家長的意見",
+        "diverse_learning_assessment": "多元學習評估"
     }
 
     if not st.session_state.search_mode:
@@ -213,6 +216,7 @@ if school_df is not None and article_df is not None:
                 with st.expander(f"**{row['學校名稱']}**"):
                     
                     with st.expander("基本資料", expanded=True):
+                        # ... (顯示邏輯與前一版相同, 已移除 divider)
                         c1, c2, c3 = st.columns(3)
                         with c1: display_info("區域", row.get("區域"))
                         with c2: 
@@ -244,7 +248,6 @@ if school_df is not None and article_df is not None:
                         
                         display_info("教學語言", row.get("教學語言"))
 
-                        st.divider()
                         c1, c2, c3 = st.columns(3)
                         with c1:
                             principal_name = str(row.get("校長姓名", "")).strip()
@@ -261,7 +264,6 @@ if school_df is not None and article_df is not None:
                         with c1: display_info("家長教師會", row.get("家長教師會"))
                         with c2: display_info("舊生會／校友會", row.get("舊生會_校友會"))
                         
-                        st.divider()
                         c1, c2 = st.columns(2)
                         with c1: display_info("一般上學時間", row.get("上課時間_"))
                         with c2: display_info("一般放學時間", row.get("放學時間"))
@@ -286,6 +288,12 @@ if school_df is not None and article_df is not None:
                         with c3:
                             display_info("小一上學期多元化評估", row.get(col_map["g1_diverse_assessment"]))
                             display_info("下午設導修課", row.get(col_map["tutorial_session"]))
+                        
+                        st.divider() #
+                        display_info("多元學習評估", row.get("多元學習評估"))
+                        display_info("避免緊接在長假期後安排測考", row.get("避免緊接在長假期後安排測考_讓學生在假期有充分的休息"))
+                        display_info("將校本課業政策上載至學校網頁", row.get("將校本課業政策上載至學校網頁_讓公眾及持份者知悉"))
+                        display_info("制定適切的校本課業政策", row.get("制定適切的校本課業政策_讓家長了解相關安排_並定期蒐集教師_學生和家長的意見"))
 
                     with st.expander("聯絡資料"):
                         c1, c2 = st.columns(2)
