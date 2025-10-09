@@ -65,11 +65,7 @@ def load_data():
 LABEL_MAP = {
     "校監_校管會主席姓名": "校監／校管會主席姓名",
     "校長姓名": "校長",
-    "舊生會_校友會": "舊生會／校友會",
-    "上課時間_": "一般上學時間",
-    "放學時間": "一般放學時間",
-    "午膳時間": "午膳開始時間",
-    "午膳結束時間": "午膳結束時間",
+    "舊生會_校友會": "舊生會／校友會"
 }
 def display_info(label, value):
     display_label = LABEL_MAP.get(label, label)
@@ -193,24 +189,29 @@ if school_df is not None and article_df is not None:
                     "上學年已接受師資培训人數百分率", "上學年學士人數百分率",
                     "上學年碩士_博士或以上人數百分率", "上學年特殊教育培訓人數百分率",
                     "上學年0至4年年資人數百分率", "上學年5至9年年資人數百分率", "上學年10年年資或以上人數百分率",
-                    "教師專業培訓及發展" # 新增項目
+                    "教師專業培訓及發展"
                 ],
                 "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色"],
             }
             contact_cols = ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"]
             facility_cols = ["課室數目", "禮堂數目", "操場數目", "圖書館數目", "特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
             fee_cols = {"學費": "學費", "堂費": "堂費", "家長教師會費": "家長教師會費", "非標準項目的核准收費": "非標準項目的核准收費", "其他收費_費用": "其他"}
+            
+            # --- 修改 START: 將班級教學模式和分班安排加入
             assessment_display_map = {
                 "一年級測驗次數": col_map["g1_tests"], "一年級考試次數": col_map["g1_exams"],
                 "小一上學期多元化評估": col_map["g1_diverse_assessment"],
                 "二至六年級測驗次數": col_map["g2_6_tests"], "二至六年級考試次數": col_map["g2_6_exams"],
                 "下午設導修課": col_map["tutorial_session"],
-                "多元學習評估": col_map["diverse_learning_assessment"],
-                "避免長假期後測考": col_map["no_test_after_holiday"],
-                "網上校本課業政策": col_map["policy_on_web"],
-                "制定校本課業政策": col_map["homework_policy"]
+                "多元學習評估": "多元學習評估",
+                "避免長假期後測考": "避免緊接在長假期後安排測考_讓學生在假期有充分的休息",
+                "網上校本課業政策": "將校本課業政策上載至學校網頁_讓公眾及持份者知悉",
+                "制定校本課業政策": "制定適切的校本課業政策_讓家長了解相關安排_並定期蒐集教師_學生和家長的意見",
+                "班級教學模式": "班級教學模式",
+                "分班安排": "分班安排"
             }
-
+            # --- 修改 END ---
+            
             excluded_cols = set(base_info_cols)
             excluded_cols.update(col for cols in other_categories.values() for col in cols)
             excluded_cols.update(contact_cols)
@@ -238,7 +239,6 @@ if school_df is not None and article_df is not None:
                                         st.markdown(f"[{title}]({link})")
 
                     with st.expander("基本資料"):
-                        # --- 修改 START: 改為單欄顯示 ---
                         display_info("區域", row.get("區域"))
                         net_display = "不適用" if row.get("小一學校網") == "/" else row.get("小一學校網")
                         display_info("小一學校網", net_display)
@@ -279,7 +279,6 @@ if school_df is not None and article_df is not None:
                         display_info("午膳開始時間", row.get("午膳開始時間"))
                         display_info("午膳結束時間", row.get("午膳結束時間"))
                         display_info("午膳安排", row.get("午膳安排"))
-                        # --- 修改 END ---
 
                     with st.expander("學校設施"):
                         facility_data = [{"設施項目": col, "內容／數量": row.get(col)} for col in facility_cols if pd.notna(row.get(col)) and str(row.get(col)).strip() not in ['nan', '-']]
@@ -287,6 +286,7 @@ if school_df is not None and article_df is not None:
                         else: st.info("沒有學校設施資料可顯示。")
                     
                     with st.expander("學業評估與安排"):
+                        # ... (顯示邏輯與前一版相同)
                         c1, c2, c3 = st.columns(3)
                         with c1:
                             display_info("一年級測驗次數", row.get(col_map["g1_tests"]))
@@ -299,10 +299,11 @@ if school_df is not None and article_df is not None:
                             display_info("下午設導修課", row.get(col_map["tutorial_session"]))
                         
                         st.divider()
-                        display_info("多元學習評估", row.get(col_map["diverse_learning_assessment"]))
-                        display_info("避免緊接在長假期後安排測考", row.get(col_map["no_test_after_holiday"]))
-                        display_info("將校本課業政策上載至學校網頁", row.get(col_map["policy_on_web"]))
-                        display_info("制定適切的校本課業政策", row.get(col_map["homework_policy"]))
+                        # --- 修改 START: 加入班級教學模式和分班安排 ---
+                        for label, col_name in assessment_display_map.items():
+                            if label not in ["一年級測驗次數", "一年級考試次數", "二至六年級測驗次數", "二至六年級考試次數", "小一上學期多元化評估", "下午設導修課"]:
+                                display_info(label, row.get(col_name))
+                        # --- 修改 END ---
 
                     with st.expander("聯絡資料"):
                         c1, c2 = st.columns(2)
