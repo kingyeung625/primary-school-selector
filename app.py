@@ -50,9 +50,14 @@ def load_data():
         return None, None
 
 # --- 輔助函數 ---
+# 建立一個標籤映射表，用於修正顯示的文字
+LABEL_MAP = {
+    "校監_校管會主席姓名": "校監／校管會主席姓名"
+}
 def display_info(label, value):
+    display_label = LABEL_MAP.get(label, label) # 如果在映射表中，則使用新標籤
     if pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']:
-        st.markdown(f"**{label}：** {str(value)}")
+        st.markdown(f"**{display_label}：** {str(value)}")
 
 school_df, article_df = load_data()
 
@@ -66,15 +71,10 @@ if school_df is not None and article_df is not None:
         "tutorial_session": "按校情靈活編排時間表_盡量在下午安排導修時段_讓學生能在教師指導下完成部分家課"
     }
 
-    # ==================================================================
-    # 模式一：顯示篩選器
-    # ==================================================================
     if not st.session_state.search_mode:
-        # --- 修改 START: 新增文字搜尋框 ---
         st.subheader("根據學校名稱搜尋")
         school_name_query = st.text_input("輸入學校名稱關鍵字", key="school_name_search", label_visibility="collapsed")
-        # --- 修改 END ---
-
+        
         st.subheader("根據學校基本資料篩選")
         row1_col1, row1_col2, row1_col3 = st.columns(3)
         with row1_col1: selected_region = st.multiselect("區域", sorted(school_df["區域"].unique()), key="region")
@@ -110,15 +110,9 @@ if school_df is not None and article_df is not None:
             
             # 執行篩選
             mask = pd.Series(True, index=school_df.index)
-            
-            # --- 修改 START: 加入文字搜尋的篩選邏輯 ---
-            if school_name_query:
-                mask &= school_df["學校名稱"].str.contains(school_name_query, case=False, na=False)
-            # --- 修改 END ---
-
+            if school_name_query: mask &= school_df["學校名稱"].str.contains(school_name_query, case=False, na=False)
             if selected_region: mask &= school_df["區域"].isin(selected_region)
             if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
-            # ... (其他篩選邏輯)
             if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
             if selected_session: mask &= school_df["上課時間"].isin(selected_session)
             if selected_religion: mask &= school_df["宗教"].isin(selected_religion)
@@ -150,9 +144,6 @@ if school_df is not None and article_df is not None:
             st.session_state.filtered_schools = school_df[mask]
             st.rerun()
 
-    # ==================================================================
-    # 模式二：顯示結果
-    # ==================================================================
     else:
         if st.button("✏️ 返回並修改篩選條件"):
             st.session_state.search_mode = False
@@ -165,24 +156,55 @@ if school_df is not None and article_df is not None:
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            # --- 顯示方式 (與前一版相同) ---
+            # --- 修改 START: 更新分類定義 ---
             categories = {
-                "基本資料": ["區域", "小一學校網", "資助類型", "學生性別", "宗教", "上課時間", "創校年份", "校訓"],
+                "基本資料": ["區域", "小一學校網", "資助類型", "學生性別", "宗教", "上課時間", "創校年份", "校訓", "教學語言"],
                 "聯繫方式": ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"],
-                "管治架構": ["辦學團體", "法團校董會", "校監_校管會主席姓名", "校長姓名"],
-                "學校特色": ["教學語言", "一條龍中學", "直屬中學", "聯繫中學", "校車", "保姆車"],
-                "學業評估與安排": list(col_map.values()),
+                "管治架構": ["辦學團體", "校監_校管會主席姓名", "校長姓名"],
+                "學校特色": ["一條龍中學", "直屬中學", "聯繫中學"],
                 "師資概況": ["上學年核准編制教師職位數目", "上學年教師總人數", "上學年已接受師資培训人數百分率", "上學年學士人數百分率", "上學年碩士_博士或以上人數百分率", "上學年特殊教育培訓人數百分率"],
                 "學校設施": ["課室數目", "禮堂數目", "操場數目", "圖書館數目", "特別室", "其他學校設施", "支援有特殊教育需要學生的設施"],
                 "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色"],
             }
+            # 從自動分類中排除的欄位
+            excluded_cols = set(col for cols in categories.values() for col in cols)
             fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
-            categorized_cols = set(col for cols in categories.values() for col in cols)
-            categorized_cols.update(fee_cols)
+            assessment_display_map = {
+                "一年級測驗次數": col_map["g1_tests"], "一年級考試次數": col_map["g1_exams"],
+                "小一上學期多元化評估": col_map["g1_diverse_assessment"],
+                "二至六年級測驗次數": col_map["g2_6_tests"], "二至六年級考試次數": col_map["g2_6_exams"],
+                "下午設導修課": col_map["tutorial_session"]
+            }
+            excluded_cols.update(fee_cols)
+            excluded_cols.update(col_map.values())
+            excluded_cols.update(["校車", "保姆車"]) # 排除原始校車欄位
 
             for index, row in filtered_schools.iterrows():
                 with st.expander(f"**{row['學校名稱']}**"):
+                    # 處理基本資料 + 整合後的校車資訊
+                    st.markdown("##### 基本資料")
+                    base_info_cols = categories["基本資料"]
+                    sub_cols = st.columns(3)
+                    
+                    # 智能組合校車資訊
+                    has_bus = row.get("校車") == "有"
+                    has_van = row.get("保姆車") == "有"
+                    transport_status = "沒有"
+                    if has_bus and has_van: transport_status = "有校車及保姆車"
+                    elif has_bus: transport_status = "有校車"
+                    elif has_van: transport_status = "有保姆車"
+                    
+                    # 將校車資訊和其他基本資料一起顯示
+                    all_base_info = {col: row.get(col) for col in base_info_cols}
+                    all_base_info["校車或保姆車"] = transport_status
+                    
+                    for i, (label, value) in enumerate(all_base_info.items()):
+                        with sub_cols[i % 3]:
+                            display_info(label, value)
+
+                    # 處理其他分類
                     for category, cols in categories.items():
+                        if category == "基本資料": continue # 跳過已處理的基本資料
                         if any(pd.notna(row.get(col)) and str(row.get(col)).strip() and str(row.get(col)).lower() not in ['nan', '-'] for col in cols):
                             st.markdown(f"##### {category}")
                             if category == "辦學理念":
@@ -193,6 +215,14 @@ if school_df is not None and article_df is not None:
                                     with sub_cols[i % 3]:
                                         display_info(col_name, row.get(col_name))
                     
+                    # 以表格顯示學業評估
+                    st.markdown("##### 學業評估與安排")
+                    assessment_data = []
+                    for label, col_name in assessment_display_map.items():
+                        assessment_data.append({"項目": label, "內容": row.get(col_name, "N/A")})
+                    assessment_df = pd.DataFrame(assessment_data)
+                    st.table(assessment_df.set_index("項目"))
+
                     st.markdown("##### 班級結構")
                     grades_display = ["小一", "小二", "小三", "小四", "小五", "小六", "總數"]
                     grades_internal = ["小一", "小二", "小三", "小四", "小五", "小六", "總"]
@@ -228,7 +258,7 @@ if school_df is not None and article_df is not None:
                     sub_cols = st.columns(3)
                     i = 0
                     for col_name in school_df.columns:
-                        if col_name not in categorized_cols and "班數" not in col_name and col_name != "學校名稱":
+                        if col_name not in excluded_cols and "班數" not in col_name and col_name != "學校名稱":
                             if pd.notna(row.get(col_name)) and str(row.get(col_name)).strip() and str(row.get(col_name)).lower() not in ['nan', '-']:
                                 with sub_cols[i % 3]:
                                     display_info(col_name, row.get(col_name))
