@@ -23,7 +23,12 @@ def load_data():
         
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
-        # 數據清理...
+        # --- 修改 START: 數據清理 ---
+        # 遍歷所有文字類型的欄位
+        for col in school_df.select_dtypes(include=['object']).columns:
+            # 將 <br> 標籤替換為換行符，並移除前後多餘的空格
+            school_df[col] = school_df[col].str.replace('<br>', '\n', regex=False).str.strip()
+
         fee_columns = ["學費", "堂費", "家長教師會費"]
         for col in fee_columns:
             if col in school_df.columns:
@@ -40,10 +45,9 @@ def load_data():
                 if col_name in school_df.columns:
                     school_df[col_name] = pd.to_numeric(school_df[col_name], errors='coerce').fillna(0).astype(int)
         
-        # 確保面積是數字
         if "學校佔地面積" in school_df.columns:
             school_df["學校佔地面積"] = pd.to_numeric(school_df["學校佔地面積"], errors='coerce').fillna(0)
-
+        # --- 修改 END ---
 
         return school_df, article_df
         
@@ -57,7 +61,7 @@ def load_data():
 # --- 輔助函數 ---
 LABEL_MAP = {
     "校監_校管會主席姓名": "校監／校管會主席姓名",
-    "校長姓名": "校長" # 簡化標籤
+    "校長姓名": "校長"
 }
 def display_info(label, value):
     display_label = LABEL_MAP.get(label, label)
@@ -186,18 +190,15 @@ if school_df is not None and article_df is not None:
             for index, row in filtered_schools.iterrows():
                 with st.expander(f"**{row['學校名稱']}**"):
                     
-                    # --- 顯示基本資料 ---
                     st.markdown("##### 基本資料")
                     base_info_cols = categories["基本資料"]
                     sub_cols = st.columns(3)
                     
                     all_base_info = {col: row.get(col) for col in base_info_cols}
-                    # 格式化
                     if all_base_info.get("小一學校網") == "/": all_base_info["小一學校網"] = "不適用"
                     area = all_base_info.get("學校佔地面積")
                     if pd.notna(area) and area > 0: all_base_info["學校佔地面積"] = f"約{int(area)}平方米"
                     
-                    # 組合校車資訊
                     has_bus = row.get("校車") == "有"
                     has_van = row.get("保姆車") == "有"
                     transport_status = "沒有"
@@ -210,7 +211,6 @@ if school_df is not None and article_df is not None:
                         with sub_cols[i % 3]:
                             display_info(label, value)
 
-                    # --- 顯示學校設施 (表格) ---
                     st.markdown("##### 學校設施")
                     facility_data = []
                     for col in facility_cols:
@@ -223,30 +223,39 @@ if school_df is not None and article_df is not None:
                     else:
                         st.info("沒有學校設施資料可顯示。")
 
-                    # --- 顯示其他分類 ---
                     for category, cols in categories.items():
                         if category == "基本資料": continue
-                        st.markdown(f"##### {category}")
-                        if category == "辦學理念":
-                            for col in cols: display_info(col, row.get(col))
-                        elif category == "管治架構":
-                            # 組合姓名與稱謂
-                            supervisor_name = str(row.get("校監_校管會主席姓名", "")).strip()
-                            supervisor_title = str(row.get("校監_校管會主席稱謂", "")).strip()
-                            supervisor_full = f"{supervisor_name}{supervisor_title}"
-                            
-                            principal_name = str(row.get("校長姓名", "")).strip()
-                            principal_title = str(row.get("校長稱謂", "")).strip()
-                            principal_full = f"{principal_name}{principal_title}"
-                            
-                            display_info("辦學團體", row.get("辦學團體"))
-                            display_info("校監／校管會主席姓名", supervisor_full if supervisor_full else None)
-                            display_info("校長", principal_full if principal_full else None)
+                        # 檢查分類下是否有任何有效資料
+                        has_content = False
+                        if category == "管治架構":
+                             # 對管治架構特殊檢查，因為姓名和職位是分開的
+                             if pd.notna(row.get("辦學團體")) or pd.notna(row.get("校監_校管會主席姓名")) or pd.notna(row.get("校長姓名")):
+                                 has_content = True
                         else:
-                            sub_cols = st.columns(3)
-                            for i, col_name in enumerate(cols):
-                                with sub_cols[i % 3]:
-                                    display_info(col_name, row.get(col_name))
+                            if any(pd.notna(row.get(col)) and str(row.get(col)).strip() and str(row.get(col)).lower() not in ['nan', '-'] for col in cols):
+                                has_content = True
+
+                        if has_content:
+                            st.markdown(f"##### {category}")
+                            if category == "辦學理念":
+                                for col in cols: display_info(col, row.get(col))
+                            elif category == "管治架構":
+                                supervisor_name = str(row.get("校監_校管會主席姓名", "")).strip()
+                                supervisor_title = str(row.get("校監_校管會主席稱謂", "")).strip()
+                                supervisor_full = f"{supervisor_name}{supervisor_title}"
+                                
+                                principal_name = str(row.get("校長姓名", "")).strip()
+                                principal_title = str(row.get("校長稱謂", "")).strip()
+                                principal_full = f"{principal_name}{principal_title}"
+                                
+                                display_info("辦學團體", row.get("辦學團體"))
+                                display_info("校監／校管會主席姓名", supervisor_full if supervisor_name else None)
+                                display_info("校長", principal_full if principal_name else None)
+                            else:
+                                sub_cols = st.columns(3)
+                                for i, col_name in enumerate(cols):
+                                    with sub_cols[i % 3]:
+                                        display_info(col_name, row.get(col_name))
 
                     st.markdown("##### 學業評估與安排")
                     assessment_data = [{"項目": label, "內容": row.get(col_name, "N/A")} for label, col_name in assessment_display_map.items()]
