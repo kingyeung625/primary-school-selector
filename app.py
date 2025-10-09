@@ -10,7 +10,7 @@ st.title("香港小學選校篩選器")
 
 # --- 初始化 Session State ---
 if 'search_mode' not in st.session_state:
-    st.session_state.search_mode = False
+    st.session_state.search_mode = False 
 if 'filtered_schools' not in st.session_state:
     st.session_state.filtered_schools = pd.DataFrame()
 
@@ -20,14 +20,14 @@ def load_data():
     try:
         school_df = pd.read_csv("database - 學校資料.csv")
         article_df = pd.read_csv("database - 相關文章.csv")
-
+        
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
-
+        
         # 數據清理
         for col in school_df.select_dtypes(include=['object']).columns:
             if school_df[col].dtype == 'object':
                 school_df[col] = school_df[col].str.replace('<br>', '\n', regex=False).str.strip()
-
+        
         if '學校名稱' in school_df.columns:
             school_df['學校名稱'] = school_df['學校名稱'].str.replace(r'\s+', ' ', regex=True).str.strip()
 
@@ -40,18 +40,18 @@ def load_data():
         for col in assessment_cols:
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col], errors='coerce').fillna(0).astype(int)
-
+        
         for year in ["上學年", "本學年"]:
             for grade in ["小一", "小二", "小三", "小四", "小五", "小六", "總"]:
                 col_name = f"{year}{grade}班數"
                 if col_name in school_df.columns:
                     school_df[col_name] = pd.to_numeric(school_df[col_name], errors='coerce').fillna(0).astype(int)
-
+        
         if "學校佔地面積" in school_df.columns:
             school_df["學校佔地面積"] = pd.to_numeric(school_df["學校佔地面積"], errors='coerce').fillna(0)
 
         return school_df, article_df
-
+        
     except FileNotFoundError:
         st.error("錯誤：找不到資料檔案。請確保 'database - 學校資料.csv' 和 'database - 相關文章.csv' 檔案與 app.py 在同一個資料夾中。")
         return None, None
@@ -60,19 +60,18 @@ def load_data():
         return None, None
 
 # --- 輔助函數 ---
-LABEL_MAP = {
-    "校監_校管會主席姓名": "校監／校管會主席姓名",
+LABEL_MAP = { 
+    "校監_校管會主席姓名": "校監／校管會主席姓名", 
     "校長姓名": "校長",
     "舊生會_校友會": "舊生會／校友會"
 }
 def display_info(label, value):
     display_label = LABEL_MAP.get(label, label)
-    # 處理連結的特殊情況
-    if "網頁" in label and pd.notna(value) and "http" in str(value):
-        st.markdown(f"**{display_label}：** [{value}]({value})")
-    elif pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']:
-        st.markdown(f"**{display_label}：** {str(value)}")
-
+    if pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']:
+        if "網頁" in label and "http" in str(value):
+            st.markdown(f"**{display_label}：** [{value}]({value})")
+        else:
+            st.markdown(f"**{display_label}：** {str(value)}")
 
 school_df, article_df = load_data()
 
@@ -89,13 +88,13 @@ if school_df is not None and article_df is not None:
     if not st.session_state.search_mode:
         st.subheader("根據學校名稱搜尋")
         school_name_query = st.text_input("輸入學校名稱關鍵字", key="school_name_search", label_visibility="collapsed")
-
+        
         st.subheader("根據學校基本資料篩選")
         row1_col1, row1_col2, row1_col3 = st.columns(3)
         with row1_col1: selected_region = st.multiselect("區域", sorted(school_df["區域"].unique()), key="region")
         with row1_col2: selected_net = st.multiselect("小一學校網", sorted(school_df["小一學校網"].dropna().unique()), key="net")
         with row1_col3: selected_cat1 = st.multiselect("資助類型", sorted(school_df["資助類型"].unique()), key="cat1")
-
+        
         row2_col1, row2_col2, row2_col3 = st.columns(3)
         with row2_col1: selected_gender = st.multiselect("學生性別", sorted(school_df["學生性別"].unique()), key="gender")
         with row2_col2: selected_religion = st.multiselect("宗教", sorted(school_df["宗教"].unique()), key="religion")
@@ -118,11 +117,11 @@ if school_df is not None and article_df is not None:
             selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options, key="g2_6_tests")
             selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options, key="g2_6_exams")
             has_tutorial_session = st.checkbox("學校盡量在下午安排導修時段讓學生能在教師指導下完成部分家課", key="tutorial")
-
+        
         st.text("")
         if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
             st.session_state.search_mode = True
-
+            
             mask = pd.Series(True, index=school_df.index)
             query = school_name_query.strip()
             if query: mask &= school_df["學校名稱"].str.contains(query, case=False, na=False)
@@ -155,7 +154,7 @@ if school_df is not None and article_df is not None:
             mask = apply_assessment_filter(mask, col_map["g2_6_exams"], selected_g2_6_exams)
             if use_diverse_assessment: mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
             if has_tutorial_session: mask &= (school_df[col_map["tutorial_session"]] == "有")
-
+            
             st.session_state.filtered_schools = school_df[mask]
             st.rerun()
 
@@ -167,21 +166,15 @@ if school_df is not None and article_df is not None:
         st.divider()
         filtered_schools = st.session_state.filtered_schools
         st.subheader(f"篩選結果：共找到 {len(filtered_schools)} 間學校")
-
+        
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
             categories = {
-                "基本資料": [
-                    "區域", "小一學校網", "資助類型", "學生性別", "宗教", "上課時間",
-                    "創校年份", "校訓", "教學語言", "學校佔地面積", "辦學團體",
-                    "校監_校管會主席姓名", "校長姓名", "家長教師會", "舊生會_校友會",
-                    "上課時間_", "午膳時間", "午膳安排"
-                ],
                 "學校特色": ["一條龍中學", "直屬中學", "聯繫中學"],
                 "師資概況": [
-                    "上學年核准編制教師職位數目", "上學年教師總人數",
-                    "上學年已接受師資培训人數百分率", "上學年學士人數百分率",
+                    "上學年核准編制教師職位數目", "上學年教師總人數", 
+                    "上學年已接受師資培训人數百分率", "上學年學士人數百分率", 
                     "上學年碩士_博士或以上人數百分率", "上學年特殊教育培訓人數百分率",
                     "上學年0至4年年資人數百分率", "上學年5至9年年資人數百分率", "上學年10年年資或以上人數百分率"
                 ],
@@ -190,7 +183,7 @@ if school_df is not None and article_df is not None:
             contact_cols = ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"]
             facility_cols = ["課室數目", "禮堂數目", "操場數目", "圖書館數目", "特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
             fee_cols = {"學費": "學費", "堂費": "堂費", "家長教師會費": "家長教師會費", "非標準項目的核准收費": "非標準項目的核准收費", "其他收費_費用": "其他"}
-
+            
             excluded_cols = set(col for cols in categories.values() for col in cols)
             excluded_cols.update(contact_cols)
             excluded_cols.update(facility_cols)
@@ -199,34 +192,79 @@ if school_df is not None and article_df is not None:
             excluded_cols.update([
                 "校車", "保姆車", "校監_校管會主席稱謂", "校長稱謂", "法團校董會",
                 "校監和校董_校管會主席和成員的培訓達標率", "其他宗教",
-                "每週上學日數", "一般上學時段", "一般放學時段",
-                "法團校董會_校管會_校董會"
+                "每週上學日數", "一般上學時段", "一般放學時段", "法團校董會_校管會_校董會"
             ])
 
             for index, row in filtered_schools.iterrows():
                 with st.expander(f"**{row['學校名稱']}**"):
-
+                    
                     with st.expander("基本資料", expanded=True):
-                        sub_cols = st.columns(3)
-                        all_base_info = {col: row.get(col) for col in categories["基本資料"]}
-                        if all_base_info.get("小一學校網") == "/": all_base_info["小一學校網"] = "不適用"
-                        area = all_base_info.get("學校佔地面積")
-                        if pd.notna(area) and area > 0: all_base_info["學校佔地面積"] = f"約{int(area)}平方米"
-                        has_bus, has_van = row.get("校車") == "有", row.get("保姆車") == "有"
-                        transport_status = "沒有"
-                        if has_bus and has_van: transport_status = "有校車及保姆車"
-                        elif has_bus: transport_status = "有校車"
-                        elif has_van: transport_status = "有保姆車"
-                        all_base_info["校車或保姆車"] = transport_status
-                        supervisor_name = str(row.get("校監_校管會主席姓名", "")).strip()
-                        supervisor_title = str(row.get("校監_校管會主席稱謂", "")).strip()
-                        all_base_info["校監_校管會主席姓名"] = f"{supervisor_name}{supervisor_title}" if supervisor_name else None
-                        principal_name = str(row.get("校長姓名", "")).strip()
-                        principal_title = str(row.get("校長稱謂", "")).strip()
-                        all_base_info["校長姓名"] = f"{principal_name}{principal_title}" if principal_name else None
-                        for i, (label, value) in enumerate(all_base_info.items()):
-                            with sub_cols[i % 3]:
-                                display_info(label, value)
+                        # Row 1
+                        c1, c2, c3 = st.columns(3)
+                        with c1: display_info("區域", row.get("區域"))
+                        with c2: 
+                            net_display = "不適用" if row.get("小一學校網") == "/" else row.get("小一學校網")
+                            display_info("小一學校網", net_display)
+                        
+                        # Row 2
+                        c1, c2, c3 = st.columns(3)
+                        with c1: display_info("資助類型", row.get("資助類型"))
+                        with c2: display_info("上課時間", row.get("上課時間"))
+                        with c3: display_info("學生性別", row.get("學生性別"))
+
+                        # Row 3
+                        c1, c2, c3 = st.columns(3)
+                        with c1: display_info("創校年份", row.get("創校年份"))
+                        with c2: display_info("校訓", row.get("校訓"))
+                        with c3: display_info("宗教", row.get("宗教"))
+                        
+                        # Row 4
+                        c1, c2, c3 = st.columns(3)
+                        with c1:
+                            area = row.get("學校佔地面積")
+                            if pd.notna(area) and area > 0:
+                                display_info("學校佔地面積", f"約{int(area)}平方米")
+                        with c2:
+                            has_bus, has_van = row.get("校車") == "有", row.get("保姆車") == "有"
+                            transport_status = "沒有"
+                            if has_bus and has_van: transport_status = "有校車及保姆車"
+                            elif has_bus: transport_status = "有校車"
+                            elif has_van: transport_status = "有保姆車"
+                            display_info("校車或保姆車", transport_status)
+                        
+                        # Row 5
+                        display_info("教學語言", row.get("教學語言"))
+
+                        # Row 6
+                        c1, c2, c3 = st.columns(3)
+                        with c1:
+                            principal_name = str(row.get("校長姓名", "")).strip()
+                            principal_title = str(row.get("校長稱謂", "")).strip()
+                            display_info("校長", f"{principal_name}{principal_title}" if principal_name else None)
+                        with c2:
+                            supervisor_name = str(row.get("校監_校管會主席姓名", "")).strip()
+                            supervisor_title = str(row.get("校監_校管會主席稱謂", "")).strip()
+                            display_info("校監／校管會主席姓名", f"{supervisor_name}{supervisor_title}" if supervisor_name else None)
+                        with c3:
+                            display_info("辦學團體", row.get("辦學團體"))
+                        
+                        # Row 7
+                        c1, c2, c3 = st.columns(3)
+                        with c1: display_info("家長教師會", row.get("家長教師會"))
+                        with c2: display_info("舊生會／校友會", row.get("舊生會_校友會"))
+                        
+                        # Row 8
+                        c1, c2 = st.columns(2)
+                        with c1: display_info("一般上學時間", row.get("上課時間_"))
+                        with c2: display_info("一般放學時間", row.get("放學時間"))
+
+                        # Row 9
+                        c1, c2 = st.columns(2)
+                        with c1: display_info("午膳開始時間", row.get("午膳時間"))
+                        with c2: display_info("午膳結束時間", None) # Placeholder as column not in data
+                        
+                        display_info("午膳安排", row.get("午膳安排"))
+                        
 
                     with st.expander("學校設施"):
                         facility_data = [{"設施項目": col, "內容／數量": row.get(col)} for col in facility_cols if pd.notna(row.get(col)) and str(row.get(col)).strip() not in ['nan', '-']]
@@ -234,7 +272,7 @@ if school_df is not None and article_df is not None:
                             st.table(pd.DataFrame(facility_data).set_index("設施項目"))
                         else:
                             st.info("沒有學校設施資料可顯示。")
-
+                    
                     with st.expander("學業評估與安排"):
                         c1, c2, c3 = st.columns(3)
                         with c1:
@@ -258,7 +296,7 @@ if school_df is not None and article_df is not None:
                         display_info("網頁", row.get("學校網址"))
 
                     for category, cols in categories.items():
-                        if category == "基本資料": continue
+                        if category in ["基本資料", "管治架構"]: continue
                         if any(pd.notna(row.get(col)) and str(row.get(col)).strip() and str(row.get(col)).lower() not in ['nan', '-'] for col in cols):
                             with st.expander(category):
                                 if category == "辦學理念":
