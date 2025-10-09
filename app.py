@@ -165,21 +165,41 @@ if school_df is not None and article_df is not None:
         else:
             # --- 修改 START: 更新分類定義 ---
             categories = {
-                "基本資料": ["區域", "小一學校網", "資助類型", "學生性別", "宗教", "上課時間", "創校年份", "校訓", "教學語言", "學校佔地面積", "辦學團體", "校監_校管會主席姓名", "校長姓名"],
+                "基本資料": [
+                    "區域", "小一學校網", "資助類型", "學生性別", "宗教", "上課時間", 
+                    "創校年份", "校訓", "教學語言", "學校佔地面積", "辦學團體", 
+                    "校監_校管會主席姓名", "校長姓名", "家長教師會", "舊生會_校友會",
+                    "上課時間_", "午膳時間", "午膳安排", "健康校園生活"
+                ],
                 "學校特色": ["一條龍中學", "直屬中學", "聯繫中學"],
-                "師資概況": ["上學年核准編制教師職位數目", "上學年教師總人數", "上學年已接受師資培训人數百分率", "上學年學士人數百分率", "上學年碩士_博士或以上人數百分率", "上學年特殊教育培訓人數百分率", "上學年0至4年年資人數百分率", "上學年5至9年年資人數百分率", "上學年10年年資或以上人數百分率"],
+                "師資概況": [
+                    "上學年核准編制教師職位數目", "上學年教師總人數", 
+                    "上學年已接受師資培训人數百分率", "上學年學士人數百分率", 
+                    "上學年碩士_博士或以上人數百分率", "上學年特殊教育培訓人數百分率",
+                    "上學年0至4年年資人數百分率", "上學年5至9年年資人數百分率", "上學年10年年資或以上人數百分率"
+                ],
                 "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色"],
             }
             contact_cols = ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"]
             facility_cols = ["課室數目", "禮堂數目", "操場數目", "圖書館數目", "特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
             fee_cols = {"學費": "學費", "堂費": "堂費", "家長教師會費": "家長教師會費", "非標準項目的核准收費": "非標準項目的核准收費", "其他收費_費用": "其他"}
+            assessment_display_map = {
+                "一年級測驗次數": col_map["g1_tests"], "一年級考試次數": col_map["g1_exams"],
+                "小一上學期多元化評估": col_map["g1_diverse_assessment"],
+                "二至六年級測驗次數": col_map["g2_6_tests"], "二至六年級考試次數": col_map["g2_6_exams"],
+                "下午設導修課": col_map["tutorial_session"]
+            }
             
             excluded_cols = set(col for cols in categories.values() for col in cols)
             excluded_cols.update(contact_cols)
             excluded_cols.update(facility_cols)
             excluded_cols.update(fee_cols.keys())
             excluded_cols.update(col_map.values())
-            excluded_cols.update(["校車", "保姆車", "校監_校管會主席稱謂", "校長稱謂", "法團校董會"])
+            excluded_cols.update([
+                "校車", "保姆車", "校監_校管會主席稱謂", "校長稱謂", "法團校董會",
+                "校監和校董_校管會主席和成員的培訓達標率", "其他宗教",
+                "每週上學日數", "一般上學時段", "一般放學時段"
+            ])
             # --- 修改 END ---
 
             for index, row in filtered_schools.iterrows():
@@ -201,7 +221,6 @@ if school_df is not None and article_df is not None:
                         elif has_van: transport_status = "有保姆車"
                         all_base_info["校車或保姆車"] = transport_status
                         
-                        # 組合姓名與稱謂
                         supervisor_name = str(row.get("校監_校管會主席姓名", "")).strip()
                         supervisor_title = str(row.get("校監_校管會主席稱謂", "")).strip()
                         all_base_info["校監_校管會主席姓名"] = f"{supervisor_name}{supervisor_title}" if supervisor_name else None
@@ -221,7 +240,6 @@ if school_df is not None and article_df is not None:
                         else:
                             st.info("沒有學校設施資料可顯示。")
                     
-                    # --- 修改 START: 學業評估與安排改為三欄文字 ---
                     with st.expander("學業評估與安排"):
                         c1, c2, c3 = st.columns(3)
                         with c1:
@@ -233,8 +251,7 @@ if school_df is not None and article_df is not None:
                         with c3:
                             display_info("小一上學期多元化評估", row.get(col_map["g1_diverse_assessment"]))
                             display_info("下午設導修課", row.get(col_map["tutorial_session"]))
-                    # --- 修改 END ---
-                    
+
                     with st.expander("聯絡資料"):
                         c1, c2 = st.columns(2)
                         with c1:
@@ -246,7 +263,7 @@ if school_df is not None and article_df is not None:
                         display_info("網頁", row.get("學校網址"))
 
                     for category, cols in categories.items():
-                        if category in ["基本資料", "管治架構"]: continue
+                        if category == "基本資料": continue
                         if any(pd.notna(row.get(col)) and str(row.get(col)).strip() and str(row.get(col)).lower() not in ['nan', '-'] for col in cols):
                             with st.expander(category):
                                 if category == "辦學理念":
@@ -266,7 +283,6 @@ if school_df is not None and article_df is not None:
                         st.table(class_df)
 
                     with st.expander("費用"):
-                        # --- 修改 START: 移除空白欄位並重命名 ---
                         fee_data = []
                         for col_key, col_display in fee_cols.items():
                             value = row.get(col_key)
@@ -282,7 +298,6 @@ if school_df is not None and article_df is not None:
                             st.table(pd.DataFrame(fee_data).set_index("項目"))
                         else:
                             st.info("沒有費用資料可顯示。")
-                        # --- 修改 END ---
 
                     with st.expander("補充資料"):
                         other_cols_exist = False
