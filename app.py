@@ -9,6 +9,8 @@ st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 st.title("香港小學選校篩選器")
 
 # --- 初始化 Session State ---
+if 'show_filters' not in st.session_state:
+    st.session_state.show_filters = True  # 預設展開篩選器
 if 'search_active' not in st.session_state:
     st.session_state.search_active = False
 if 'filtered_schools' not in st.session_state:
@@ -23,16 +25,13 @@ def load_data():
         
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
-        # 數據清理
+        # 數據清理...
         fee_columns = ["學費", "堂費", "家長教師會費"]
         for col in fee_columns:
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
-        assessment_cols = [
-            "全年全科測驗次數_一年級", "全年全科考試次數_一年級",
-            "全年全科測驗次數_二至六年級", "全年全科考試次數_二至六年級"
-        ]
+        assessment_cols = ["全年全科測驗次數_一年級", "全年全科考試次數_一年級", "全年全科測驗次數_二至六年級", "全年全科考試次數_二至六年級"]
         for col in assessment_cols:
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col], errors='coerce').fillna(0).astype(int)
@@ -63,24 +62,21 @@ school_df, article_df = load_data()
 if school_df is not None and article_df is not None:
     
     # --- 篩選器介面 ---
-    # 搜尋後，篩選器會自動收合 (expanded=False)
-    with st.expander("根據學校基本資料篩選", expanded=not st.session_state.search_active):
+    with st.expander("根據學校基本資料篩選", expanded=st.session_state.show_filters):
         row1_col1, row1_col2, row1_col3 = st.columns(3)
         with row1_col1: selected_region = st.multiselect("區域", sorted(school_df["區域"].unique()), default=[])
         with row1_col2: selected_net = st.multiselect("小一學校網", sorted(school_df["小一學校網"].dropna().unique()), default=[])
         with row1_col3: selected_cat1 = st.multiselect("資助類型", sorted(school_df["資助類型"].unique()), default=[])
-
         row2_col1, row2_col2, row2_col3 = st.columns(3)
         with row2_col1: selected_gender = st.multiselect("學生性別", sorted(school_df["學生性別"].unique()), default=[])
         with row2_col2: selected_religion = st.multiselect("宗教", sorted(school_df["宗教"].unique()), default=[])
         with row2_col3: selected_session = st.multiselect("上課時間", sorted(school_df["上課時間"].unique()), default=[])
-
         row3_col1, row3_col2, row3_col3 = st.columns(3)
         with row3_col1: selected_language = st.multiselect("教學語言", sorted(school_df["教學語言"].dropna().unique()), default=[])
         with row3_col2: selected_related = st.multiselect("關聯學校類型", ["一條龍中學", "直屬中學", "聯繫中學"], default=[])
         with row3_col3: selected_transport = st.multiselect("校車服務", ["校車", "保姆車"], default=[])
 
-    with st.expander("根據課業安排篩選", expanded=False): # 第二個預設為收合
+    with st.expander("根據課業安排篩選", expanded=st.session_state.show_filters):
         col_map = {
             "g1_tests": "全年全科測驗次數_一年級", "g1_exams": "全年全科考試次數_一年級",
             "g1_diverse_assessment": "小一上學期以多元化的進展性評估代替測驗及考試",
@@ -101,6 +97,7 @@ if school_df is not None and article_df is not None:
     st.text("")
     if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
         st.session_state.search_active = True
+        st.session_state.show_filters = False  # 搜尋後，命令篩選器收合
         
         # 篩選邏輯
         mask = pd.Series(True, index=school_df.index)
@@ -138,13 +135,19 @@ if school_df is not None and article_df is not None:
         
     if st.session_state.search_active:
         st.divider()
+        
+        # 搜尋後顯示「修改篩選條件」按鈕
+        if st.button("✏️ 修改篩選條件"):
+            st.session_state.show_filters = True # 命令篩選器展開
+            st.rerun() # 立即重新整理頁面以顯示篩選器
+
         filtered_schools = st.session_state.filtered_schools
         st.subheader(f"篩選結果：共找到 {len(filtered_schools)} 間學校")
         
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            # --- 顯示方式 ---
+            # --- 顯示方式 (與前一版相同) ---
             categories = {
                 "基本資料": ["區域", "小一學校網", "資助類型", "學生性別", "宗教", "上課時間", "創校年份", "校訓"],
                 "聯繫方式": ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"],
