@@ -98,15 +98,22 @@ LABEL_MAP = {
     "堂費": "堂費",
     "家長教師會費": "家長教師會費",
     "非標準項目的核准收費": "非標準項目的核准收費",
-    "其他收費_費用": "其他"
+    "其他收費_費用": "其他",
+    "一條龍中學": "一條龍中學",
+    "直屬中學": "直屬中學",
+    "聯繫中學": "聯繫中學"
 }
+
+# 檢查資料是否有效 (不是 NaN, -, 或空字串)
+def is_valid_data(value):
+    return pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']
 
 # 更新 display_info 函數以始終顯示標籤
 def display_info(label, value, is_fee=False):
     display_label = LABEL_MAP.get(label, label)
     display_value = "沒有" # 預設值
 
-    if pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']:
+    if is_valid_data(value):
         # --- Value exists ---
         val_str = str(value)
         if "網頁" in label and "http" in val_str:
@@ -130,6 +137,11 @@ def display_info(label, value, is_fee=False):
              display_value = "$0" # 數字費用預設為 $0
         else:
              display_value = "沒有" # 文字費用預設為 "沒有"
+    
+    # 對於非費用欄位，如果 value 無效且 label 不是 "關聯學校" (有特殊處理)，則顯示 "沒有"
+    elif label == "關聯學校":
+        st.markdown(f"**{display_label}：** {display_value}")
+        return
 
     st.markdown(f"**{display_label}：** {display_value}")
 # --- [END] 輔助函數 (更新) ---
@@ -327,25 +339,40 @@ if school_df is not None and article_df is not None:
 
                         c9, c10 = st.columns(2)
                         with c9: display_info("教學語言", row.get("教學語言"))
-                        with c10: 
-                            st.markdown("**關聯學校：**") # 顯示 "關聯學校：" 標題
-                            # 使用 st.markdown 模擬縮進
-                            related_dragon = str(row.get("一條龍中學")) if pd.notna(row.get("一條龍中學")) and str(row.get("一條龍中學")).strip() != '-' else "沒有"
-                            st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;**一條龍中學：** {related_dragon}", unsafe_allow_html=True)
-                            related_feeder = str(row.get("直屬中學")) if pd.notna(row.get("直屬中學")) and str(row.get("直屬中學")).strip() != '-' else "沒有"
-                            st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;**直屬中學：** {related_feeder}", unsafe_allow_html=True)
-                            related_linked = str(row.get("聯繫中學")) if pd.notna(row.get("聯繫中學")) and str(row.get("聯繫中學")).strip() != '-' else "沒有"
-                            st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;**聯繫中學：** {related_linked}", unsafe_allow_html=True)
                         
+                        # --- [START] 關聯學校邏輯 (已修改) ---
+                        with c10: 
+                            related_dragon_val = row.get("一條龍中學")
+                            related_feeder_val = row.get("直屬中學")
+                            related_linked_val = row.get("聯繫中學")
+                            
+                            has_dragon = is_valid_data(related_dragon_val)
+                            has_feeder = is_valid_data(related_feeder_val)
+                            has_linked = is_valid_data(related_linked_val)
+
+                            if not has_dragon and not has_feeder and not has_linked:
+                                display_info("關聯學校", None) # 這將顯示 "關聯學校：沒有"
+                            else:
+                                st.markdown("**關聯學校：**") # 僅顯示標題
+                                if has_dragon:
+                                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;**一條龍中學：** {related_dragon_val}", unsafe_allow_html=True)
+                                if has_feeder:
+                                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;**直屬中學：** {related_feeder_val}", unsafe_allow_html=True)
+                                if has_linked:
+                                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;**聯繫中學：** {related_linked_val}", unsafe_allow_html=True)
+                        # --- [END] 關聯學校邏輯 ---
+
                         c11, c12 = st.columns(2) # 新增的校長/校監行
                         with c11:
                             principal_name = str(row.get("校長姓名", "")).strip()
                             principal_title = str(row.get("校長稱謂", "")).strip()
-                            display_info("校長", f"{principal_name}{principal_title}" if (principal_name and principal_name != '-') else "沒有")
+                            principal_display = f"{principal_name}{principal_title}" if is_valid_data(principal_name) else None
+                            display_info("校長", principal_display)
                         with c12:
                             supervisor_name = str(row.get("校監_校管會主席姓名", "")).strip()
                             supervisor_title = str(row.get("校監_校管會主席稱謂", "")).strip()
-                            display_info("校監_校管會主席姓名", f"{supervisor_name}{supervisor_title}" if (supervisor_name and supervisor_name != '-') else "沒有")
+                            supervisor_display = f"{supervisor_name}{supervisor_title}" if is_valid_data(supervisor_name) else None
+                            display_info("校監_校管會主席姓名", supervisor_display)
 
                         c13, c14 = st.columns(2)
                         with c13: display_info("家長教師會", row.get("家長教師會"))
@@ -465,7 +492,7 @@ if school_df is not None and article_df is not None:
                             for col_name in school_df.columns:
                                 if col_name not in displayed_cols:
                                     value = row.get(col_name)
-                                    if pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']:
+                                    if is_valid_data(value):
                                         display_info(col_name, value)
                                         other_cols_exist = True
                             if not other_cols_exist:
