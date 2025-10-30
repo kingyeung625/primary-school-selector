@@ -117,13 +117,15 @@ LABEL_MAP = {
 
 # 檢查資料是否有效 (不是 NaN, -, 或空字串)
 def is_valid_data(value):
-    # 這裡不需要檢查 is_valid_data，因為在 load_data 中已經對這些時間欄位進行了處理。
     return pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']
 
 # 更新 display_info 函數以始終顯示標籤
 def display_info(label, value, is_fee=False):
     display_label = LABEL_MAP.get(label, label)
     display_value = "沒有" # 預設值
+    
+    # 判斷是否為需要格式化的時間欄位
+    is_time_field = label in ["上課時間_", "放學時間", "午膳時間", "午膳結束時間"]
 
     if is_valid_data(value):
         # --- Value exists ---
@@ -137,9 +139,21 @@ def display_info(label, value, is_fee=False):
             if isinstance(value, (int, float)) and value > 0:
                 display_value = f"${int(value)}"
             elif isinstance(value, (int, float)) and value == 0:
-                display_value = "$0" # 根據 DOCX 格式，費用應顯示 $0
+                display_value = "$0" # 費用應顯示 $0
             else:
-                display_value = val_str # 用於 "N/A" 或其他文字
+                display_value = val_str
+        elif is_time_field and ':' in val_str:
+            # --- NEW TIME FORMATTING LOGIC ---
+            try:
+                parts = val_str.split(':')
+                if len(parts) >= 2:
+                    # 讀取小時和分鐘 (第一個和第二個冒號之間的數字)
+                    display_value = f"{parts[0]}:{parts[1]}"
+                else:
+                    display_value = val_str
+            except:
+                display_value = val_str
+            # --- END NEW TIME FORMATTING LOGIC ---
         else:
             display_value = val_str
     
