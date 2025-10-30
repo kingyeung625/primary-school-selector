@@ -77,7 +77,7 @@ LABEL_MAP = {
     "校監_校管會主席姓名": "校監", 
     "校長姓名": "校長",
     "舊生會_校友會": "舊生會／校友會", 
-    "上課時間_": "一般上課時間",
+    "上課時間_": "一般上學時間", # <-- 根據請求修改
     "放學時間": "一般放學時間",
     "午膳時間": "午膳開始時間",
     "午膳結束時間": "午膳結束時間",
@@ -227,7 +227,7 @@ if school_df is not None and article_df is not None:
             if selected_related:
                 related_mask = pd.Series(False, index=school_df.index)
                 for col in selected_related:
-                    if col in school_df.columns: related_mask |= (school_df[col].notna() & (school_df[col] != "-"))
+                    if col in school_df.columns: related_mask |= is_valid_data(school_df[col])
                 mask &= related_mask
             if selected_transport:
                 transport_mask = pd.Series(False, index=school_df.index)
@@ -309,7 +309,7 @@ if school_df is not None and article_df is not None:
 
                     tab_list = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構"]
                     
-                    has_mission_data = any(pd.notna(row.get(col)) and str(row.get(col)).strip() and str(row.get(col)).lower() not in ['nan', '-'] for col in other_categories["辦學理念"])
+                    has_mission_data = any(is_valid_data(row.get(col)) for col in other_categories["辦學理念"])
                     if has_mission_data:
                         tab_list.append("辦學理念與補充資料")
 
@@ -355,11 +355,12 @@ if school_df is not None and article_df is not None:
                             else:
                                 st.markdown("**關聯學校：**") # 僅顯示標題
                                 if has_dragon:
-                                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;**一條龍中學：** {related_dragon_val}", unsafe_allow_html=True)
+                                    # 使用 display_info 確保格式一致
+                                    display_info("一條龍中學", related_dragon_val)
                                 if has_feeder:
-                                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;**直屬中學：** {related_feeder_val}", unsafe_allow_html=True)
+                                    display_info("直屬中學", related_feeder_val)
                                 if has_linked:
-                                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;**聯繫中學：** {related_linked_val}", unsafe_allow_html=True)
+                                    display_info("聯繫中學", related_linked_val)
                         # --- [END] 關聯學校邏輯 ---
 
                         c11, c12 = st.columns(2) # 新增的校長/校監行
@@ -392,8 +393,8 @@ if school_df is not None and article_df is not None:
                         # c_transport2 保持空白，如 DOCX 所示
                         
                         c15, c16 = st.columns(2)
-                        with c15: display_info("上課時間_", row.get("上課時間_"))
-                        with c16: display_info("放學時間", row.get("放學時間"))
+                        with c15: display_info("上課時間_", row.get("上課時間_")) # <-- 顯示 "一般上學時間"
+                        with c16: display_info("放學時間", row.get("放學時間")) # <-- 顯示 "一般放學時間"
 
                         st.divider()
                         st.subheader("午膳安排")
@@ -403,7 +404,7 @@ if school_df is not None and article_df is not None:
                         # c_lunch2 保持空白，如 DOCX 所示
 
                         c17, c18 = st.columns(2)
-                        with c17: display_info("午膳時間", row.get("午膳時間"))
+                        with c17: display_info("午膳時間", row.get("午膳時間")) # <-- 顯示 "午膳開始時間"
                         with c18: display_info("午膳結束時間", row.get("午膳結束時間"))
 
                         st.divider()
