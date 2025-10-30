@@ -24,7 +24,7 @@ def load_data():
         school_df.columns = school_df.columns.str.strip()
         article_df.columns = article_df.columns.str.strip()
         
-        school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
+        school_df.rename(columns={"學校類別1": "資助類型", "學校類B別2": "上課時間"}, inplace=True)
         
         for col in school_df.select_dtypes(include=['object']).columns:
             if school_df[col].dtype == 'object':
@@ -109,26 +109,29 @@ if school_df is not None and article_df is not None:
         school_name_query = st.text_input("輸入學校名稱關鍵字", key="school_name_search", label_visibility="collapsed")
         
         st.subheader("根據學校基本資料篩選")
-        row1_col1, row1_col2, row1_col3 = st.columns(3)
-        with row1_col1: selected_region = st.multiselect("區域", sorted(school_df["區域"].unique()), key="region")
-        with row1_col2: selected_net = st.multiselect("小一學校網", sorted(school_df["小一學校網"].dropna().unique()), key="net")
-        with row1_col3: selected_cat1 = st.multiselect("資助類型", sorted(school_df["資助類型"].unique()), key="cat1")
         
-        row2_col1, row2_col2, row2_col3 = st.columns(3)
-        with row2_col1: selected_gender = st.multiselect("學生性別", sorted(school_df["學生性別"].unique()), key="gender")
-        with row2_col2: selected_religion = st.multiselect("宗教", sorted(school_df["宗教"].unique()), key="religion")
-        with row2_col3: selected_session = st.multiselect("上課時間", sorted(school_df["上課時間"].unique()), key="session")
-
-        row3_col1, row3_col2, row3_col3 = st.columns(3)
-        with row3_col1: selected_language = st.multiselect("教學語言", sorted(school_df["教學語言"].dropna().unique()), key="lang")
-        with row3_col2: selected_related = st.multiselect("關聯學校類型", ["一條龍中學", "直屬中學", "聯繫中學"], key="related")
-        with row3_col3: selected_transport = st.multiselect("校車服務", ["校車", "保姆車"], key="transport")
+        # --- [START] MODIFIED UI SECTION 1: Basic Info ---
+        # Row 1 with 5 columns
+        r1c1, r1c2, r1c3, r1c4, r1c5 = st.columns(5)
+        with r1c1: selected_region = st.multiselect("區域", sorted(school_df["區域"].unique()), key="region")
+        with r1c2: selected_net = st.multiselect("小一學校網", sorted(school_df["小一學校網"].dropna().unique()), key="net")
+        with r1c3: selected_cat1 = st.multiselect("資助類型", sorted(school_df["資助類型"].unique()), key="cat1")
+        with r1c4: selected_gender = st.multiselect("學生性別", sorted(school_df["學生性別"].unique()), key="gender")
+        with r1c5: selected_session = st.multiselect("上課時間", sorted(school_df["上課時間"].unique()), key="session")
+        
+        # Row 2 with 4 columns
+        r2c1, r2c2, r2c3, r2c4 = st.columns(4)
+        with r2c1: selected_religion = st.multiselect("宗教", sorted(school_df["宗教"].unique()), key="religion")
+        with r2c2: selected_language = st.multiselect("教學語言", sorted(school_df["教學語言"].dropna().unique()), key="lang")
+        with r2c3: selected_related = st.multiselect("關聯學校類型", ["一條龍中學", "直屬中學", "聯繫中學"], key="related")
+        with r2c4: selected_transport = st.multiselect("校車服務", ["校車", "保姆車"], key="transport")
+        # --- [END] MODIFIED UI SECTION 1 ---
 
         st.divider()
         st.subheader("根據課業安排篩選")
         assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
         
-        # --- [START] MODIFIED UI SECTION ---
+        # --- [START] MODIFIED UI SECTION 2: Homework/Assessment ---
         # --- Row 1: Assessment Counts ---
         c1, c2, c3, c4 = st.columns(4)
         with c1:
@@ -150,7 +153,7 @@ if school_df is not None and article_df is not None:
             has_tutorial_session = st.checkbox("下午設導修課 (教師指導家課)", key="tutorial")
         
         # Removed st.text("")
-        # --- [END] MODIFIED UI SECTION ---
+        # --- [END] MODIFIED UI SECTION 2 ---
         
         if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
             st.session_state.search_mode = True
@@ -160,7 +163,7 @@ if school_df is not None and article_df is not None:
             if query: mask &= school_df["學校名稱"].str.contains(query, case=False, na=False)
             if selected_region: mask &= school_df["區域"].isin(selected_region)
             if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
-            if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
+            if selected_gender: mask &= school_df["學生性B別"].isin(selected_gender)
             if selected_session: mask &= school_df["上課時間"].isin(selected_session)
             if selected_religion: mask &= school_df["宗教"].isin(selected_religion)
             if selected_language: mask &= school_df["教學語言"].isin(selected_language)
