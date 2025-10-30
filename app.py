@@ -230,26 +230,29 @@ if school_df is not None and article_df is not None:
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
+            # --- [START] 重新定義欄位組 (響應請求) ---
             base_info_cols = [
                 "區域", "小一學校網", "資助類型", "上課時間", "學生性別", 
                 "創校年份", "校訓", "宗教", "學校佔地面積", 
-                "辦學團體", "校監_校管會主席姓名", "校長姓名", "家長教師會", "舊生會_校友會", "午膳安排"
+                "辦學團體", "家長教師會", "舊生會_校友會", "教學語言" # <-- 已加入教學語言
             ]
-            time_info_cols = ["上課時間_", "放學時間", "午膳時間", "午膳結束時間"]
+            related_school_cols = ["一條龍中學", "直屬中學", "聯繫中學"] # <-- 獨立定義
+            time_info_cols = ["上課時間_", "放學時間", "午膳時間", "午膳結束時間", "午膳安排"] # <-- 獨立定義
+            fee_cols = {"學費": "學費", "堂費": "堂費", "家長教師會費": "家長教師會費", "非標準項目的核准收費": "非標準項目的核准收費", "其他收費_費用": "其他"} # <-- 獨立定義
+            
             teacher_stat_cols = [
                 "上學年已接受師資培训人數百分率", "上學年學士人數百分率", "上學年碩士_博士或以上人數百分率", 
                 "上學年特殊教育培訓人數百分率", "上學年0至4年年資人數百分率", "上學年5至9年年資人數百分率", 
                 "上學年10年年資或以上人數百分率", "上學年核准編制教師職位數目", "上學年教師總人數", 
                 "教師專業培訓及發展"
             ]
-            other_categories = {
-                "學校特色": ["一條龍中學", "直屬中學", "聯繫中學"],
+            other_categories = { # <-- 只剩下 "辦學理念"
                 "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色"],
             }
             contact_cols = ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"]
             facility_cols_counts = ["課室數目", "禮堂數目", "操場數目", "圖書館數目"]
             facility_cols_text = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
-            fee_cols = {"學費": "學費", "堂費": "堂費", "家長教師會費": "家長教師會費", "非標準項目的核准收費": "非標準項目的核准收費", "其他收費_費用": "其他"}
+            
             assessment_display_map = {
                 "一年級測驗次數": col_map["g1_tests"], "一年級考試次數": col_map["g1_exams"],
                 "小一上學期多元化評估": col_map["g1_diverse_assessment"],
@@ -263,41 +266,42 @@ if school_df is not None and article_df is not None:
                 "分班安排": "分班安排"
             }
 
-            excluded_cols = set(base_info_cols)
+            # 更新 Excluded Cols
+            excluded_cols = set()
+            excluded_cols.update(base_info_cols)
+            excluded_cols.update(related_school_cols)
             excluded_cols.update(time_info_cols)
+            excluded_cols.update(fee_cols.keys())
             excluded_cols.update(teacher_stat_cols)
             excluded_cols.update(col for cols in other_categories.values() for col in cols)
             excluded_cols.update(contact_cols)
             excluded_cols.update(facility_cols_counts)
             excluded_cols.update(facility_cols_text)
-            excluded_cols.update(fee_cols.keys())
             excluded_cols.update(assessment_display_map.values())
             excluded_cols.update([
-                "校車", "保姆車", "校監_校管會主席稱謂", "校長稱謂", "法團校董會",
+                "校車", "保姆車", "校監_校管會主席稱謂", "校長稱謂", "法團校董會", "校長姓名", "校監_校管會主席姓名",
                 "校監和校董_校管會主席和成員的培訓達標率", "其他宗教",
                 "每週上學日數", "一般上學時段", "一般放學時段", "法團校董會_校管會_校董會", "學校名稱",
                 "學校管理超連結：", "學校關注事項超連結：", "教學規劃超連結：", 
                 "學生支援超連結：", "家校合作及校風超連結：", "未來發展超連結："
             ])
+            # --- [END] 重新定義欄位組 ---
 
             for index, row in filtered_schools.iterrows():
                 with st.expander(f"**{row['學校名稱']}**"):
                     
-                    # --- [START] 顯示相關文章 (UI 改善) ---
                     related_articles = article_df[article_df["學校名稱"] == row["學校名稱"]]
                     if not related_articles.empty:
-                        with st.expander("相關文章", expanded=False): # 預設折疊
+                        with st.expander("相關文章", expanded=False): 
                             for _, article_row in related_articles.iterrows():
                                 title, link = article_row.get('文章標題'), article_row.get('文章連結')
                                 if pd.notna(title) and pd.notna(link):
                                     with st.container(border=True):
                                         st.markdown(f"[{title}]({link})")
-                    # --- [END] 顯示相關文章 ---
 
-                    # --- [START] 使用 TABS 替換所有 EXPANDERS ---
-                    tab_list = ["基本資料", "師資與教學", "學校設施", "班級與費用"]
+                    # --- [START] 根據使用者請求重新定義 TABS ---
+                    tab_list = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構"]
                     
-                    # 檢查是否有 "辦學理念" 數據
                     has_mission_data = any(pd.notna(row.get(col)) and str(row.get(col)).strip() and str(row.get(col)).lower() not in ['nan', '-'] for col in other_categories["辦學理念"])
                     if has_mission_data:
                         tab_list.append("辦學理念")
@@ -307,34 +311,47 @@ if school_df is not None and article_df is not None:
 
                     tabs = st.tabs(tab_list)
 
-                    # --- TAB 1: 基本資料 (UI 改善) ---
+                    # --- TAB 1: 基本資料 (響應請求 2, 3, 4, 5) ---
                     with tabs[0]:
+                        # 核心資料網格
                         c1, c2, c3 = st.columns(3)
                         with c1:
                             display_info("區域", row.get("區域"))
                             display_info("小一學校網", row.get("小一學校網"))
                             display_info("資助類型", row.get("資助類型"))
-                            display_info("學生性別", row.get("學生性別"))
                         with c2:
+                            display_info("學生性別", row.get("學生性別"))
                             display_info("創校年份", row.get("創校年份"))
                             display_info("宗教", row.get("宗教"))
-                            display_info("辦學團體", row.get("辦學團體"))
-                            display_info("校訓", row.get("校訓"))
                         with c3:
                             display_info("家長教師會", row.get("家長教師會"))
                             display_info("舊生會_校友會", row.get("舊生會_校友會"))
                             display_info("學校佔地面積", row.get("學校佔地面積"))
-                            
-                            has_bus, has_van = row.get("校車") == "有", row.get("保姆車") == "有"
-                            transport_status = "沒有"
-                            if has_bus and has_van: transport_status = "有校車及保姆車"
-                            elif has_bus: transport_status = "有校車"
-                            elif has_van: transport_status = "有保姆車"
-                            display_info("校車或保姆車", transport_status)
+
+                        display_info("辦學團體", row.get("辦學團體"))
+                        display_info("校訓", row.get("校訓"))
+                        display_info("教學語言", row.get("教學語言")) # <-- 請求 4
                         
                         st.divider()
+                        st.markdown("##### 關聯學校與時間")
                         
-                        # 重要人物和午膳安排
+                        rc1, rc2 = st.columns(2)
+                        with rc1:
+                            # 請求 3: 聯繫中學
+                            display_info("一條龍中學", row.get("一條龍中學"))
+                            display_info("直屬中學", row.get("直屬中學"))
+                            display_info("聯繫中學", row.get("聯繫中學"))
+                        
+                        with rc2:
+                            # 請求 5: 上課時間
+                            display_info("上課時間", row.get("上課時間")) # 全日/上午/下午
+                            display_info("上課時間_", row.get("上課時間_"))
+                            display_info("放學時間", row.get("放學時間"))
+                            display_info("午膳時間", row.get("午膳時間"))
+                            display_info("午膳結束時間", row.get("午膳結束時間"))
+
+                        st.divider()
+                        st.markdown("##### 校長與校監")
                         c_admin1, c_admin2 = st.columns(2)
                         with c_admin1:
                             principal_name = str(row.get("校長姓名", "")).strip()
@@ -343,24 +360,33 @@ if school_df is not None and article_df is not None:
                         with c_admin2:
                             supervisor_name = str(row.get("校監_校管會主席姓名", "")).strip()
                             supervisor_title = str(row.get("校監_校管會主席稱謂", "")).strip()
-                    
                             display_info("校監／校管會主席姓名", f"{supervisor_name}{supervisor_title}" if supervisor_name else None)
 
+                        st.divider()
+                        st.markdown("##### 午膳安排")
                         display_info("午膳安排", row.get("午膳安排"))
-                        for col in time_info_cols:
-                            display_info(col, row.get(col))
-
-                    # --- TAB 2: 師資與教學 (UI 改善) ---
-                    with tabs[1]:
-                        st.subheader("師資概況")
-                        sub_cols = st.columns(3)
-                        for i, col_name in enumerate(teacher_stat_cols):
-                            if col_name == "教師專業培訓及發展": continue # 這個文字太多，單獨顯示
-                            with sub_cols[i % 3]:
-                                display_info(col_name, row.get(col_name))
-                        display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
+                        has_bus, has_van = row.get("校車") == "有", row.get("保姆車") == "有"
+                        transport_status = "沒有"
+                        if has_bus and has_van: transport_status = "有校車及保姆車"
+                        elif has_bus: transport_status = "有校車"
+                        elif has_van: transport_status = "有保姆車"
+                        display_info("校車或保姆車", transport_status)
 
                         st.divider()
+                        st.markdown("##### 費用") # <-- 請求 2
+                        fee_data = []
+                        for col_key, col_display in fee_cols.items():
+                            value = row.get(col_key)
+                            display_value = "沒有"
+                            if pd.notna(value):
+                                if isinstance(value, (int, float)) and value > 0: display_value = f"${int(value)}"
+                                elif not isinstance(value, (int, float)) and str(value).strip() not in ['-', 'nan', '0']: display_value = value
+                            fee_data.append({"項目": col_display, "費用": display_value})
+                        if any(item["費用"] != "沒有" for item in fee_data): st.table(pd.DataFrame(fee_data).set_index("項目"))
+                        else: st.info("沒有費用資料可顯示。")
+
+                    # --- TAB 2: 學業評估與安排 (響應請求 1) ---
+                    with tabs[1]:
                         st.subheader("學業評估與安排")
                         c1, c2, c3 = st.columns(3)
                         with c1:
@@ -378,8 +404,20 @@ if school_df is not None and article_df is not None:
                             if label not in ["一年級測驗次數", "一年級考試次數", "二至六年級測驗次數", "二至六年級考試次數", "小一上學期多元化評估", "下午設導修課"]:
                                 display_info(label, row.get(col_name))
 
-                    # --- TAB 3: 學校設施 (UI 改善) ---
+                    # --- TAB 3: 師資概況 ---
                     with tabs[2]:
+                        st.subheader("師資概況")
+                        sub_cols = st.columns(3)
+                        stat_cols_to_display = [col for col in teacher_stat_cols if col != "教師專業培訓及發展"] # 排除長文字
+                        for i, col_name in enumerate(stat_cols_to_display):
+                            with sub_cols[i % 3]:
+                                display_info(col_name, row.get(col_name))
+                        
+                        st.divider()
+                        display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
+
+                    # --- TAB 4: 學校設施 ---
+                    with tabs[3]:
                         st.subheader("設施數量")
                         c1, c2, c3, c4 = st.columns(4)
                         with c1: display_info("課室數目", row.get("課室數目"))
@@ -392,8 +430,8 @@ if school_df is not None and article_df is not None:
                         for col in facility_cols_text:
                             display_info(col, row.get(col))
 
-                    # --- TAB 4: 班級與費用 (UI 改善) ---
-                    with tabs[3]:
+                    # --- TAB 5: 班級結構 ---
+                    with tabs[4]:
                         st.subheader("班級結構")
                         grades_display = ["小一", "小二", "小三", "小四", "小五", "小六", "總數"]
                         grades_internal = ["小一", "小二", "小三", "小四", "小五", "小六", "總"]
@@ -402,21 +440,8 @@ if school_df is not None and article_df is not None:
                         class_df = pd.DataFrame([last_year_data, this_year_data], columns=grades_display, index=["上學年班數", "本學年班數"])
                         st.table(class_df)
 
-                        st.divider()
-                        st.subheader("費用")
-                        fee_data = []
-                        for col_key, col_display in fee_cols.items():
-                            value = row.get(col_key)
-                            display_value = "沒有"
-                            if pd.notna(value):
-                                if isinstance(value, (int, float)) and value > 0: display_value = f"${int(value)}"
-                                elif not isinstance(value, (int, float)) and str(value).strip() not in ['-', 'nan', '0']: display_value = value
-                            fee_data.append({"項目": col_display, "費用": display_value})
-                        if any(item["費用"] != "沒有" for item in fee_data): st.table(pd.DataFrame(fee_data).set_index("項目"))
-                        else: st.info("沒有費用資料可顯示。")
-
                     # --- 動態 TABS ---
-                    tab_index = 4
+                    tab_index = 5
                     if has_mission_data:
                         with tabs[tab_index]:
                             for col in other_categories["辦學理念"]:
@@ -434,12 +459,6 @@ if school_df is not None and article_df is not None:
                         display_info("網頁", row.get("學校網址"))
                     
                     with tabs[tab_index + 1]:
-                        # 顯示 "學校特色"
-                        st.subheader("學校特色")
-                        for col in other_categories["學校特色"]:
-                            display_info(col, row.get(col))
-                        
-                        st.divider()
                         st.subheader("其他補充資料")
                         other_cols_exist = False
                         for col_name in school_df.columns:
