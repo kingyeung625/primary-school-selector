@@ -24,9 +24,7 @@ def load_data():
         school_df.columns = school_df.columns.str.strip()
         article_df.columns = article_df.columns.str.strip()
         
-        # --- [START] THIS IS THE CORRECTED LINE ---
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
-        # --- [END] THIS IS THE CORRECTED LINE ---
         
         for col in school_df.select_dtypes(include=['object']).columns:
             if school_df[col].dtype == 'object':
@@ -110,53 +108,50 @@ if school_df is not None and article_df is not None:
         st.subheader("根據學校名稱搜尋")
         school_name_query = st.text_input("輸入學校名稱關鍵字", key="school_name_search", label_visibility="collapsed")
         
-        st.subheader("根據學校基本資料篩選")
-        
-        # --- [START] MODIFIED UI SECTION 1: Basic Info ---
-        # Row 1 with 5 columns
-        r1c1, r1c2, r1c3, r1c4, r1c5 = st.columns(5)
-        with r1c1: selected_region = st.multiselect("區域", sorted(school_df["區域"].unique()), key="region")
-        with r1c2: selected_net = st.multiselect("小一學校網", sorted(school_df["小一學校網"].dropna().unique()), key="net")
-        with r1c3: selected_cat1 = st.multiselect("資助類型", sorted(school_df["資助類型"].unique()), key="cat1")
-        with r1c4: selected_gender = st.multiselect("學生性別", sorted(school_df["學生性別"].unique()), key="gender")
-        with r1c5: selected_session = st.multiselect("上課時間", sorted(school_df["上課時間"].unique()), key="session")
-        
-        # Row 2 with 4 columns
-        r2c1, r2c2, r2c3, r2c4 = st.columns(4)
-        with r2c1: selected_religion = st.multiselect("宗教", sorted(school_df["宗教"].unique()), key="religion")
-        with r2c2: selected_language = st.multiselect("教學語言", sorted(school_df["教學語言"].dropna().unique()), key="lang")
-        with r2c3: selected_related = st.multiselect("關聯學校類型", ["一條龍中學", "直屬中學", "聯繫中學"], key="related")
-        with r2c4: selected_transport = st.multiselect("校車服務", ["校車", "保姆車"], key="transport")
+        # --- [START] MODIFIED UI SECTION 1: Basic Info (now in an expander) ---
+        with st.expander("根據學校基本資料篩選"):
+            # Row 1 with 5 columns
+            r1c1, r1c2, r1c3, r1c4, r1c5 = st.columns(5)
+            with r1c1: selected_region = st.multiselect("區域", sorted(school_df["區域"].unique()), key="region")
+            with r1c2: selected_net = st.multiselect("小一學校網", sorted(school_df["小一學校網"].dropna().unique()), key="net")
+            with r1c3: selected_cat1 = st.multiselect("資助類型", sorted(school_df["資助類型"].unique()), key="cat1")
+            with r1c4: selected_gender = st.multiselect("學生性別", sorted(school_df["學生性別"].unique()), key="gender")
+            with r1c5: selected_session = st.multiselect("上課時間", sorted(school_df["上課時間"].unique()), key="session")
+            
+            # Row 2 with 4 columns
+            r2c1, r2c2, r2c3, r2c4 = st.columns(4)
+            with r2c1: selected_religion = st.multiselect("宗教", sorted(school_df["宗教"].unique()), key="religion")
+            with r2c2: selected_language = st.multiselect("教學語言", sorted(school_df["教學語言"].dropna().unique()), key="lang")
+            with r2c3: selected_related = st.multiselect("關聯學校類型", ["一條龍中學", "直屬中學", "聯繫中學"], key="related")
+            with r2c4: selected_transport = st.multiselect("校車服務", ["校車", "保姆車"], key="transport")
         # --- [END] MODIFIED UI SECTION 1 ---
 
-        st.divider()
-        st.subheader("根據課業安排篩選")
-        assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
-        
-        # --- [START] MODIFIED UI SECTION 2: Homework/Assessment ---
-        # --- Row 1: Assessment Counts ---
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options, key="g1_tests")
-        with c2:
-            selected_g1_exams = st.selectbox("一年級考試次數", assessment_options, key="g1_exams")
-        with c3:
-            selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options, key="g2_6_tests")
-        with c4:
-            selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options, key="g2_6_exams")
+        # --- [START] MODIFIED UI SECTION 2: Homework (now in an expander) ---
+        with st.expander("根據課業安排篩選"):
+            assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
+            
+            # --- Row 1: Assessment Counts ---
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options, key="g1_tests")
+            with c2:
+                selected_g1_exams = st.selectbox("一年級考試次數", assessment_options, key="g1_exams")
+            with c3:
+                selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options, key="g2_6_tests")
+            with c4:
+                selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options, key="g2_6_exams")
 
-        # --- Row 2: Policies ---
-        c5, c6 = st.columns(2)
-        with c5:
-            # Shortened label for a tighter UI
-            use_diverse_assessment = st.checkbox("小一上學期以多元化評估代替測考", key="diverse")
-        with c6:
-            # Shortened label for a tighter UI
-            has_tutorial_session = st.checkbox("下午設導修課 (教師指導家課)", key="tutorial")
-        
-        # Removed st.text("")
+            # --- Row 2: Policies ---
+            c5, c6 = st.columns(2)
+            with c5:
+                # Shortened label for a tighter UI
+                use_diverse_assessment = st.checkbox("小一上學期以多元化評估代替測考", key="diverse")
+            with c6:
+                # Shortened label for a tighter UI
+                has_tutorial_session = st.checkbox("下午設導修課 (教師指導家課)", key="tutorial")
         # --- [END] MODIFIED UI SECTION 2 ---
         
+        st.write("") # Add a little space before the button
         if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
             st.session_state.search_mode = True
             
@@ -226,13 +221,13 @@ if school_df is not None and article_df is not None:
             }
             contact_cols = ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"]
             facility_cols = ["課室數目", "禮堂數目", "操場數目", "圖書館數目", "特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
-            fee_cols = {"學費": "學費", "堂費": "堂費", "家長教師會費": "家長教師會費", "非標準項目的核准收費": "非標準項目的核准收Field-of-view", "其他收費_費用": "其他"}
+            fee_cols = {"學費": "學費", "堂費": "堂費", "家長教師會費": "家長教師會費", "非標準項目的核准收費": "非標準項目的核准收費", "其他收費_費用": "其他"}
             assessment_display_map = {
                 "一年級測驗次數": col_map["g1_tests"], "一年級考試次數": col_map["g1_exams"],
                 "小一上學期多元化評估": col_map["g1_diverse_assessment"],
                 "二至六年級測驗次數": col_map["g2_6_tests"], "二至六年級考試次數": col_map["g2_6_exams"],
                 "下午設導修課": col_map["tutorial_session"],
-                "多元學習評估": "多元學習評估",
+                "多元學習評估": "多元學習評V估",
                 "避免長假期後測考": "避免緊接在長假期後安排測考_讓學生在假期有充分的休息",
                 "網上校本課業政策": "將校本課業政策上載至學校網頁_讓公眾及持份者知悉",
                 "制定校本課業政策": "制定適切的校本課業政策_讓家長了解相關安排_並定期蒐集教師_學生和家長的意見",
