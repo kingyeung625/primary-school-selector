@@ -74,9 +74,9 @@ def load_data():
 
 # --- [START] 輔助函數 (更新) ---
 LABEL_MAP = { 
-    "校監_校管會主席姓名": "校監", # <-- 根據 DOCX 修改
+    "校監_校管會主席姓名": "校監", 
     "校長姓名": "校長",
-    "舊生會_校友會": "舊生會／校友會", # <-- 根據 DOCX 修改
+    "舊生會_校友會": "舊生會／校友會", 
     "上課時間_": "一般上課時間",
     "放學時間": "一般放學時間",
     "午膳時間": "午膳開始時間",
@@ -118,7 +118,7 @@ def display_info(label, value, is_fee=False):
             if isinstance(value, (int, float)) and value > 0:
                 display_value = f"${int(value)}"
             elif isinstance(value, (int, float)) and value == 0:
-                display_value = "$0"
+                display_value = "$0" # 根據 DOCX 格式，費用應顯示 $0
             else:
                 display_value = val_str # 用於 "N/A" 或其他文字
         else:
@@ -307,7 +307,7 @@ if school_df is not None and article_df is not None:
 
                     # --- [START] TAB 1: 基本資料 (完全依照 DOCX 格式) ---
                     with tabs[0]:
-                        st.subheader("學校基本資料") [cite: 1]
+                        st.subheader("學校基本資料")
                         # 佈局基於 source 2
                         c1, c2 = st.columns(2)
                         with c1: display_info("區域", row.get("區域"))
@@ -336,23 +336,23 @@ if school_df is not None and article_df is not None:
                             st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;**直屬中學：** {related_feeder}", unsafe_allow_html=True)
                             related_linked = str(row.get("聯繫中學")) if pd.notna(row.get("聯繫中學")) and str(row.get("聯繫中學")).strip() != '-' else "沒有"
                             st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;**聯繫中學：** {related_linked}", unsafe_allow_html=True)
-
-                        c11, c12 = st.columns(2) # 新增的校長/校監行 [cite: 2]
+                        
+                        c11, c12 = st.columns(2) # 新增的校長/校監行
                         with c11:
                             principal_name = str(row.get("校長姓名", "")).strip()
                             principal_title = str(row.get("校長稱謂", "")).strip()
-                            display_info("校長", f"{principal_name}{principal_title}" if principal_name else None)
+                            display_info("校長", f"{principal_name}{principal_title}" if (principal_name and principal_name != '-') else "沒有")
                         with c12:
                             supervisor_name = str(row.get("校監_校管會主席姓名", "")).strip()
                             supervisor_title = str(row.get("校監_校管會主席稱謂", "")).strip()
-                            display_info("校監_校管會主席姓名", f"{supervisor_name}{supervisor_title}" if supervisor_name else None)
+                            display_info("校監_校管會主席姓名", f"{supervisor_name}{supervisor_title}" if (supervisor_name and supervisor_name != '-') else "沒有")
 
                         c13, c14 = st.columns(2)
                         with c13: display_info("家長教師會", row.get("家長教師會"))
                         with c14: display_info("舊生會_校友會", row.get("舊生會_校友會"))
 
                         st.divider()
-                        st.subheader("上學及放學安排") [cite: 3]
+                        st.subheader("上學及放學安排")
                         # 佈局基於 source 4
                         c_transport1, c_transport2 = st.columns(2)
                         with c_transport1:
@@ -362,25 +362,25 @@ if school_df is not None and article_df is not None:
                             elif has_bus: transport_status = "有校車"
                             elif has_van: transport_status = "有保姆車"
                             display_info("校車或保姆車", transport_status)
-                        # c_transport2 保持空白，如 DOCX 所示 [cite: 4]
+                        # c_transport2 保持空白，如 DOCX 所示
                         
                         c15, c16 = st.columns(2)
                         with c15: display_info("上課時間_", row.get("上課時間_"))
                         with c16: display_info("放學時間", row.get("放學時間"))
 
                         st.divider()
-                        st.subheader("午膳安排") [cite: 5]
+                        st.subheader("午膳安排")
                         # 佈局基於 source 6
                         c_lunch1, c_lunch2 = st.columns(2)
                         with c_lunch1: display_info("午膳安排", row.get("午膳安排"))
-                        # c_lunch2 保持空白，如 DOCX 所示 [cite: 6]
+                        # c_lunch2 保持空白，如 DOCX 所示
 
                         c17, c18 = st.columns(2)
                         with c17: display_info("午膳時間", row.get("午膳時間"))
                         with c18: display_info("午膳結束時間", row.get("午膳結束時間"))
 
                         st.divider()
-                        st.subheader("費用") [cite: 7]
+                        st.subheader("費用")
                         # 佈局基於 source 8 (單欄列表)
                         for col_key in fee_cols:
                             display_info(col_key, row.get(col_key), is_fee=True)
