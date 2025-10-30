@@ -24,7 +24,9 @@ def load_data():
         school_df.columns = school_df.columns.str.strip()
         article_df.columns = article_df.columns.str.strip()
         
-        school_df.rename(columns={"學校類別1": "資助類型", "學校類B別2": "上課時間"}, inplace=True)
+        # --- [START] THIS IS THE CORRECTED LINE ---
+        school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
+        # --- [END] THIS IS THE CORRECTED LINE ---
         
         for col in school_df.select_dtypes(include=['object']).columns:
             if school_df[col].dtype == 'object':
@@ -163,7 +165,7 @@ if school_df is not None and article_df is not None:
             if query: mask &= school_df["學校名稱"].str.contains(query, case=False, na=False)
             if selected_region: mask &= school_df["區域"].isin(selected_region)
             if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
-            if selected_gender: mask &= school_df["學生性B別"].isin(selected_gender)
+            if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
             if selected_session: mask &= school_df["上課時間"].isin(selected_session)
             if selected_religion: mask &= school_df["宗教"].isin(selected_religion)
             if selected_language: mask &= school_df["教學語言"].isin(selected_language)
@@ -224,7 +226,7 @@ if school_df is not None and article_df is not None:
             }
             contact_cols = ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"]
             facility_cols = ["課室數目", "禮堂數目", "操場數目", "圖書館數目", "特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
-            fee_cols = {"學費": "學費", "堂費": "堂費", "家長教師會費": "家長教師會費", "非標準項目的核准收費": "非標準項目的核准收費", "其他收費_費用": "其他"}
+            fee_cols = {"學費": "學費", "堂費": "堂費", "家長教師會費": "家長教師會費", "非標準項目的核准收費": "非標準項目的核准收Field-of-view", "其他收費_費用": "其他"}
             assessment_display_map = {
                 "一年級測驗次數": col_map["g1_tests"], "一年級考試次數": col_map["g1_exams"],
                 "小一上學期多元化評估": col_map["g1_diverse_assessment"],
