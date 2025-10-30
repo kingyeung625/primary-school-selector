@@ -18,7 +18,7 @@ if 'filtered_schools' not in st.session_state:
 @st.cache_data
 def load_data():
     try:
-        # --- [START] 根據您的新檔名更新 ---
+        # --- [START] 已更新為您的新檔名 ---
         school_df = pd.read_csv("database_school_info.csv") 
         article_df = pd.read_csv("database_related_article.csv")
         # --- [END] 更新 ---
@@ -101,7 +101,7 @@ LABEL_MAP = {
     "學費": "學費",
     "堂費": "堂費",
     "家長教師會費": "家長教師會費",
-    "非標準項目的核准收費": "非標準項目的核准收費",
+    "非標準項目的核准收費": "非標準項目的核准收FED",
     "其他收費_費用": "其他",
     "一條龍中學": "一條龍中學",
     "直屬中學": "直屬中學",
