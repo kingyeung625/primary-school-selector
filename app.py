@@ -127,17 +127,31 @@ if school_df is not None and article_df is not None:
         st.divider()
         st.subheader("根據課業安排篩選")
         assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
-        hw_col1, hw_col2 = st.columns(2)
-        with hw_col1:
-            selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options, key="g1_tests")
-            selected_g1_exams = st.selectbox("一年級考試次數", assessment_options, key="g1_exams")
-            use_diverse_assessment = st.checkbox("學校於小一上學期以多元化的進展性評估代替測驗及考試", key="diverse")
-        with hw_col2:
-            selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options, key="g2_6_tests")
-            selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options, key="g2_6_exams")
-            has_tutorial_session = st.checkbox("學校盡量在下午安排導修時段讓學生能在教師指導下完成部分家課", key="tutorial")
         
-        st.text("")
+        # --- [START] MODIFIED UI SECTION ---
+        # --- Row 1: Assessment Counts ---
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options, key="g1_tests")
+        with c2:
+            selected_g1_exams = st.selectbox("一年級考試次數", assessment_options, key="g1_exams")
+        with c3:
+            selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options, key="g2_6_tests")
+        with c4:
+            selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options, key="g2_6_exams")
+
+        # --- Row 2: Policies ---
+        c5, c6 = st.columns(2)
+        with c5:
+            # Shortened label for a tighter UI
+            use_diverse_assessment = st.checkbox("小一上學期以多元化評估代替測考", key="diverse")
+        with c6:
+            # Shortened label for a tighter UI
+            has_tutorial_session = st.checkbox("下午設導修課 (教師指導家課)", key="tutorial")
+        
+        # Removed st.text("")
+        # --- [END] MODIFIED UI SECTION ---
+        
         if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
             st.session_state.search_mode = True
             
