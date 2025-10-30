@@ -18,16 +18,25 @@ if 'filtered_schools' not in st.session_state:
 @st.cache_data
 def load_data():
     try:
-        # --- [START] 已更新為您的新檔名 ---
+        # --- [START] 修正 #1: 使用您最新的檔案名稱 ---
         school_df = pd.read_csv("database_school_info.csv") 
         article_df = pd.read_csv("database_related_article.csv")
-        # --- [END] 更新 ---
+        # --- [END] 修正 #1 ---
         
         school_df.columns = school_df.columns.str.strip()
         article_df.columns = article_df.columns.str.strip()
         
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
+        # --- [START] 修正 #2: 強制清理時間欄位 ---
+        # 定義可能存在空格或被誤判為數字的時間欄位
+        time_cols_to_clean = ["上課時間_", "放學時間", "午膳時間", "午膳結束時間"]
+        for col in time_cols_to_clean:
+            if col in school_df.columns:
+                # 強制轉為 string 並移除前後空格
+                school_df[col] = school_df[col].astype(str).str.strip()
+        # --- [END] 修正 #2 ---
+
         for col in school_df.select_dtypes(include=['object']).columns:
             if school_df[col].dtype == 'object':
                 school_df[col] = school_df[col].str.replace('<br>', '\n', regex=False).str.strip()
@@ -68,9 +77,7 @@ def load_data():
         return school_df, article_df
         
     except FileNotFoundError:
-        # --- [START] 更新錯誤訊息 ---
         st.error("錯誤：找不到資料檔案。請確保 'database_school_info.csv' 和 'database_related_article.csv' 檔案與 app.py 在同一個資料夾中。")
-        # --- [END] 更新錯誤訊息 ---
         return None, None
     except Exception as e:
         st.error(f"處理資料時發生錯誤：{e}。請檢查您的 CSV 檔案格式是否正確。")
@@ -101,7 +108,7 @@ LABEL_MAP = {
     "學費": "學費",
     "堂費": "堂費",
     "家長教師會費": "家長教師會費",
-    "非標準項目的核准收費": "非標準項目的核准收FED",
+    "非標準項目的核准收費": "非標準項目的核准收費",
     "其他收費_費用": "其他",
     "一條龍中學": "一條龍中學",
     "直屬中學": "直屬中學",
