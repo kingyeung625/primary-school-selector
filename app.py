@@ -18,7 +18,7 @@ if 'filtered_schools' not in st.session_state:
 @st.cache_data
 def load_data():
     try:
-        school_df = pd.read_csv("database - 學校資料.csv")
+        school_df = pd.read_csv("database - 學校資料 .csv")
         article_df = pd.read_csv("database - 相關文章.csv")
         
         school_df.columns = school_df.columns.str.strip()
@@ -66,7 +66,7 @@ def load_data():
         return school_df, article_df
         
     except FileNotFoundError:
-        st.error("錯誤：找不到資料檔案。請確保 'database - 學校資料.csv' 和 'database - 相關文章.csv' 檔案與 app.py 在同一個資料夾中。")
+        st.error("錯誤：找不到資料檔案。請確保 'database - 學校資料 .csv' 和 'database - 相關文章.csv' 檔案與 app.py 在同一個資料夾中。")
         return None, None
     except Exception as e:
         st.error(f"處理資料時發生錯誤：{e}。請檢查您的 CSV 檔案格式是否正確。")
@@ -77,7 +77,7 @@ LABEL_MAP = {
     "校監_校管會主席姓名": "校監", 
     "校長姓名": "校長",
     "舊生會_校友會": "舊生會／校友會", 
-    "上課時間_": "一般上學時間", # <-- 根據請求修改
+    "上課時間_": "一般上學時間",
     "放學時間": "一般放學時間",
     "午膳時間": "午膳開始時間",
     "午膳結束時間": "午膳結束時間",
