@@ -18,24 +18,24 @@ if 'filtered_schools' not in st.session_state:
 @st.cache_data
 def load_data():
     try:
-        # --- [START] 修正檔案名稱: 使用您最新的檔案名稱 ---
+        # --- [START] 修正 #1: 使用您最新的檔案名稱 ---
         school_df = pd.read_csv("database_school_info.csv") 
         article_df = pd.read_csv("database_related_article.csv")
-        # --- [END] 修正檔案名稱 ---
+        # --- [END] 修正 #1 ---
         
         school_df.columns = school_df.columns.str.strip()
         article_df.columns = article_df.columns.str.strip()
         
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
-        # --- [START] 修正時間欄位: 強制清理時間欄位 ---
-        # 定義時間欄位
+        # --- [START] 修正 #2: 強制清理時間欄位 ---
+        # 定義時間欄位 (CC, CD, CE, CF)
         time_cols_to_clean = ["上課時間_", "放學時間", "午膳時間", "午膳結束時間"]
         for col in time_cols_to_clean:
             if col in school_df.columns:
                 # 強制轉為 string 並移除前後空格
                 school_df[col] = school_df[col].astype(str).str.strip()
-        # --- [END] 修正時間欄位 ---
+        # --- [END] 修正 #2 ---
 
         for col in school_df.select_dtypes(include=['object']).columns:
             if col not in time_cols_to_clean and school_df[col].dtype == 'object':
@@ -117,6 +117,7 @@ LABEL_MAP = {
 
 # 檢查資料是否有效 (不是 NaN, -, 或空字串)
 def is_valid_data(value):
+    # 這裡不需要檢查 is_valid_data，因為在 load_data 中已經對這些時間欄位進行了處理。
     return pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']
 
 # 更新 display_info 函數以始終顯示標籤
@@ -374,7 +375,7 @@ if school_df is not None and article_df is not None:
                                     display_info("聯繫中學", related_linked_val)
                         # --- [END] 關聯學校邏輯 ---
 
-                        c11, c12 = st.columns(2) # 新增的校長/校監行
+                        c11, c12 = st.columns(2) # 校長/校監行
                         with c11:
                             principal_name = str(row.get("校長姓名", "")).strip()
                             principal_title = str(row.get("校長稱謂", "")).strip()
@@ -404,8 +405,8 @@ if school_df is not None and article_df is not None:
                         # c_transport2 保持空白，如 DOCX 所示
                         
                         c15, c16 = st.columns(2)
-                        with c15: display_info("上課時間_", row.get("上課時間_")) # <-- 顯示 "一般上學時間"
-                        with c16: display_info("放學時間", row.get("放學時間")) # <-- 顯示 "一般放學時間"
+                        with c15: display_info("上課時間_", row.get("上課時間_")) # <-- 顯示 "一般上學時間" (CC)
+                        with c16: display_info("放學時間", row.get("放學時間")) # <-- 顯示 "一般放學時間" (CD)
 
                         st.divider()
                         st.subheader("午膳安排")
@@ -415,7 +416,7 @@ if school_df is not None and article_df is not None:
                         # c_lunch2 保持空白，如 DOCX 所示
 
                         c17, c18 = st.columns(2)
-                        with c17: display_info("午膳時間", row.get("午膳時間")) # <-- 顯示 "午膳開始時間"
+                        with c17: display_info("午膳時間", row.get("午膳時間")) # <-- 顯示 "午膳開始時間" (CE)
                         with c18: display_info("午膳結束時間", row.get("午膳結束時間"))
 
                         st.divider()
