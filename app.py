@@ -76,7 +76,7 @@ def load_data():
 LABEL_MAP = { 
     "校監_校管會主席姓名": "校監／校管會主席姓名", 
     "校長姓名": "校長",
-    "舊生會_校友會": "舊生會／校友會",
+    "舊生會_校友會": "舊生會", # <-- 根據圖片修改
     "上課時間_": "一般上學時間",
     "放學時間": "一般放學時間",
     "午膳時間": "午膳開始時間",
@@ -230,29 +230,19 @@ if school_df is not None and article_df is not None:
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            # --- [START] 重新定義欄位組 (響應請求) ---
-            base_info_cols = [
-                "區域", "小一學校網", "資助類型", "上課時間", "學生性別", 
-                "創校年份", "校訓", "宗教", "學校佔地面積", 
-                "辦學團體", "家長教師會", "舊生會_校友會", "教學語言" # <-- 已加入教學語言
-            ]
-            related_school_cols = ["一條龍中學", "直屬中學", "聯繫中學"] # <-- 獨立定義
-            time_info_cols = ["上課時間_", "放學時間", "午膳時間", "午膳結束時間", "午膳安排"] # <-- 獨立定義
-            fee_cols = {"學費": "學費", "堂費": "堂費", "家長教師會費": "家長教師會費", "非標準項目的核准收費": "非標準項目的核准收費", "其他收費_費用": "其他"} # <-- 獨立定義
-            
+            # 欄位定義 (保持不變，邏輯在 Tab 內部處理)
+            fee_cols = {"學費": "學費", "堂費": "堂費", "家長教師會費": "家長教師會費", "非標準項目的核准收費": "非標準項目的核准收費", "其他收費_費用": "其他"}
             teacher_stat_cols = [
                 "上學年已接受師資培训人數百分率", "上學年學士人數百分率", "上學年碩士_博士或以上人數百分率", 
                 "上學年特殊教育培訓人數百分率", "上學年0至4年年資人數百分率", "上學年5至9年年資人數百分率", 
                 "上學年10年年資或以上人數百分率", "上學年核准編制教師職位數目", "上學年教師總人數", 
                 "教師專業培訓及發展"
             ]
-            other_categories = { # <-- 只剩下 "辦學理念"
+            other_categories = {
                 "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色"],
             }
-            contact_cols = ["學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"]
             facility_cols_counts = ["課室數目", "禮堂數目", "操場數目", "圖書館數目"]
             facility_cols_text = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
-            
             assessment_display_map = {
                 "一年級測驗次數": col_map["g1_tests"], "一年級考試次數": col_map["g1_exams"],
                 "小一上學期多元化評估": col_map["g1_diverse_assessment"],
@@ -265,27 +255,9 @@ if school_df is not None and article_df is not None:
                 "班級教學模式": "班級教學模式",
                 "分班安排": "分班安排"
             }
+            # Excluded Cols 簡化，因為我們是按 Tab 明確定義
+            excluded_cols = set() 
 
-            # 更新 Excluded Cols
-            excluded_cols = set()
-            excluded_cols.update(base_info_cols)
-            excluded_cols.update(related_school_cols)
-            excluded_cols.update(time_info_cols)
-            excluded_cols.update(fee_cols.keys())
-            excluded_cols.update(teacher_stat_cols)
-            excluded_cols.update(col for cols in other_categories.values() for col in cols)
-            excluded_cols.update(contact_cols)
-            excluded_cols.update(facility_cols_counts)
-            excluded_cols.update(facility_cols_text)
-            excluded_cols.update(assessment_display_map.values())
-            excluded_cols.update([
-                "校車", "保姆車", "校監_校管會主席稱謂", "校長稱謂", "法團校董會", "校長姓名", "校監_校管會主席姓名",
-                "校監和校董_校管會主席和成員的培訓達標率", "其他宗教",
-                "每週上學日數", "一般上學時段", "一般放學時段", "法團校董會_校管會_校董會", "學校名稱",
-                "學校管理超連結：", "學校關注事項超連結：", "教學規劃超連結：", 
-                "學生支援超連結：", "家校合作及校風超連結：", "未來發展超連結："
-            ])
-            # --- [END] 重新定義欄位組 ---
 
             for index, row in filtered_schools.iterrows():
                 with st.expander(f"**{row['學校名稱']}**"):
@@ -307,73 +279,76 @@ if school_df is not None and article_df is not None:
                         tab_list.append("辦學理念")
 
                     tab_list.append("聯絡資料")
-                    tab_list.append("補充資料")
-
+                    # tab_list.append("補充資料") # 補充資料併入辦學理念或最後
+                    
                     tabs = st.tabs(tab_list)
 
-                    # --- TAB 1: 基本資料 (響應請求 2, 3, 4, 5) ---
+                    # --- [START] TAB 1: 基本資料 (採用您圖片的全新網格佈局) ---
                     with tabs[0]:
-                        # 核心資料網格
-                        c1, c2, c3 = st.columns(3)
-                        with c1:
-                            display_info("區域", row.get("區域"))
-                            display_info("小一學校網", row.get("小一學校網"))
-                            display_info("資助類型", row.get("資助類型"))
-                        with c2:
-                            display_info("學生性別", row.get("學生性別"))
-                            display_info("創校年份", row.get("創校年份"))
-                            display_info("宗教", row.get("宗教"))
-                        with c3:
-                            display_info("家長教師會", row.get("家長教師會"))
-                            display_info("舊生會_校友會", row.get("舊生會_校友會"))
-                            display_info("學校佔地面積", row.get("學校佔地面積"))
+                        # Row 1: 4 columns
+                        c1, c2, c3, c4 = st.columns(4)
+                        with c1: display_info("區域", row.get("區域"))
+                        with c2: display_info("小一學校網", row.get("小一學校網"))
+                        with c3: display_info("資助類型", row.get("資助類型"))
+                        with c4: display_info("學生性別", row.get("學生性別"))
 
-                        display_info("辦學團體", row.get("辦學團體"))
-                        display_info("校訓", row.get("校訓"))
-                        display_info("教學語言", row.get("教學語言")) # <-- 請求 4
-                        
-                        st.divider()
-                        st.markdown("##### 關聯學校與時間")
-                        
-                        rc1, rc2 = st.columns(2)
-                        with rc1:
-                            # 請求 3: 聯繫中學
-                            display_info("一條龍中學", row.get("一條龍中學"))
-                            display_info("直屬中學", row.get("直屬中學"))
-                            display_info("聯繫中學", row.get("聯繫中學"))
-                        
-                        with rc2:
-                            # 請求 5: 上課時間
-                            display_info("上課時間", row.get("上課時間")) # 全日/上午/下午
-                            display_info("上課時間_", row.get("上課時間_"))
-                            display_info("放學時間", row.get("放學時間"))
-                            display_info("午膳時間", row.get("午膳時間"))
-                            display_info("午膳結束時間", row.get("午膳結束時間"))
+                        # Row 2: 4 columns
+                        c5, c6, c7, c8 = st.columns(4)
+                        with c5: display_info("創校年份", row.get("創校年份"))
+                        with c6: display_info("宗教", row.get("宗教"))
+                        with c7: display_info("教學語言", row.get("教學語言"))
+                        with c8:
+                            has_bus, has_van = row.get("校車") == "有", row.get("保姆車") == "有"
+                            transport_status = "沒有"
+                            if has_bus and has_van: transport_status = "有校車及保姆車"
+                            elif has_bus: transport_status = "有校車"
+                            elif has_van: transport_status = "有保姆車"
+                            display_info("校車服務", transport_status)
 
                         st.divider()
-                        st.markdown("##### 校長與校監")
-                        c_admin1, c_admin2 = st.columns(2)
-                        with c_admin1:
+
+                        # Row 3: 2 columns
+                        c9, c10 = st.columns(2)
+                        with c9: display_info("辦學團體", row.get("辦學團體"))
+                        with c10: display_info("校訓", row.get("校訓"))
+
+                        # Row 4: 2 columns
+                        c11, c12 = st.columns(2)
+                        with c11:
                             principal_name = str(row.get("校長姓名", "")).strip()
                             principal_title = str(row.get("校長稱謂", "")).strip()
                             display_info("校長", f"{principal_name}{principal_title}" if principal_name else None)
-                        with c_admin2:
+                        with c12:
                             supervisor_name = str(row.get("校監_校管會主席姓名", "")).strip()
                             supervisor_title = str(row.get("校監_校管會主席稱謂", "")).strip()
                             display_info("校監／校管會主席姓名", f"{supervisor_name}{supervisor_title}" if supervisor_name else None)
 
                         st.divider()
-                        st.markdown("##### 午膳安排")
-                        display_info("午膳安排", row.get("午膳安排"))
-                        has_bus, has_van = row.get("校車") == "有", row.get("保姆車") == "有"
-                        transport_status = "沒有"
-                        if has_bus and has_van: transport_status = "有校車及保姆車"
-                        elif has_bus: transport_status = "有校車"
-                        elif has_van: transport_status = "有保姆車"
-                        display_info("校車或保姆車", transport_status)
+
+                        # Row 5: 5 columns
+                        c13, c14, c15, c16, c17 = st.columns(5)
+                        with c13: display_info("家長教師會", row.get("家長教師會"))
+                        with c14: display_info("舊生會_校友會", row.get("舊生會_校友會")) # Label 已 map 為 "舊生會"
+                        with c15: display_info("一條龍中學", row.get("一條龍中學"))
+                        with c16: display_info("直屬中學", row.get("直屬中學"))
+                        with c17: display_info("聯繫中學", row.get("聯繫中學"))
+
+                        # Row 6: 3 columns
+                        c18, c19, c20 = st.columns(3)
+                        with c18: display_info("上課時間", row.get("上課時間")) # 全日/上午/下午
+                        with c19: display_info("上課時間_", row.get("上課時間_")) # Label 已 map
+                        with c20: display_info("放學時間", row.get("放學時間")) # Label 已 map
 
                         st.divider()
-                        st.markdown("##### 費用") # <-- 請求 2
+                        
+                        # Row 7: Lunch (Full width)
+                        display_info("午膳安排", row.get("午膳安排"))
+                        display_info("午膳時間", row.get("午膳時間"))
+                       
+                        st.divider()
+
+                        # Row 8: Fees (Full width table)
+                        st.markdown("##### 費用")
                         fee_data = []
                         for col_key, col_display in fee_cols.items():
                             value = row.get(col_key)
@@ -384,8 +359,9 @@ if school_df is not None and article_df is not None:
                             fee_data.append({"項目": col_display, "費用": display_value})
                         if any(item["費用"] != "沒有" for item in fee_data): st.table(pd.DataFrame(fee_data).set_index("項目"))
                         else: st.info("沒有費用資料可顯示。")
+                    # --- [END] TAB 1 ---
 
-                    # --- TAB 2: 學業評估與安排 (響應請求 1) ---
+                    # --- TAB 2: 學業評估與安排 ---
                     with tabs[1]:
                         st.subheader("學業評估與安排")
                         c1, c2, c3 = st.columns(3)
@@ -444,11 +420,36 @@ if school_df is not None and article_df is not None:
                     tab_index = 5
                     if has_mission_data:
                         with tabs[tab_index]:
+                            st.subheader("辦學理念")
                             for col in other_categories["辦學理念"]:
                                 display_info(col, row.get(col))
+                            
+                            # 將 "補充資料" 併入此處
+                            st.divider()
+                            st.subheader("其他補充資料")
+                            other_cols_exist = False
+                            for col_name in school_df.columns:
+                                # 建立一個所有已被顯示的欄位 set
+                                displayed_cols = set()
+                                for cols_list in [fee_cols.keys(), teacher_stat_cols, other_categories["辦學理念"], facility_cols_counts, facility_cols_text, assessment_display_map.values(), ["區域", "小一學校網", "資助類型", "學生性別", "創校年份", "宗教", "教學語言", "校車", "保姆車", "辦學團體", "校訓", "校長姓名", "校長稱謂", "校監_校管會主席姓名", "校監_校管會主席稱謂", "家長教師會", "舊生會_校友會", "一條龍中學", "直屬中學", "聯繫中學", "上課時間", "上課時間_", "放學時間", "午膳安排", "午膳時間", "午膳結束時間", "學校名稱", "學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址"]]:
+                                    displayed_cols.update(cols_list)
+                                for i in range(1, 7):
+                                    displayed_cols.add(f"上學年小{i}班數")
+                                    displayed_cols.add(f"本學年小{i}班數")
+                                displayed_cols.add("上學年總班數")
+                                displayed_cols.add("本學年總班數")
+
+                                if col_name not in displayed_cols:
+                                    value = row.get(col_name)
+                                    if pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']:
+                                        display_info(col_name, value)
+                                        other_cols_exist = True
+                            if not other_cols_exist:
+                                st.info("沒有其他補充資料可顯示。")
                         tab_index += 1
                     
                     with tabs[tab_index]:
+                        st.subheader("聯絡資料")
                         c1, c2 = st.columns(2)
                         with c1:
                             display_info("地址", row.get("學校地址"))
@@ -457,17 +458,5 @@ if school_df is not None and article_df is not None:
                             display_info("電話", row.get("學校電話"))
                             display_info("電郵", row.get("學校電郵"))
                         display_info("網頁", row.get("學校網址"))
-                    
-                    with tabs[tab_index + 1]:
-                        st.subheader("其他補充資料")
-                        other_cols_exist = False
-                        for col_name in school_df.columns:
-                            if col_name not in excluded_cols and "班數" not in col_name:
-                                value = row.get(col_name)
-                                if pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']:
-                                    display_info(col_name, value)
-                                    other_cols_exist = True
-                        if not other_cols_exist:
-                            st.info("沒有其他補充資料可顯示。")
                     
                     # --- [END] TABS 結構 ---
