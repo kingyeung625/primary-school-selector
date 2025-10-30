@@ -18,27 +18,27 @@ if 'filtered_schools' not in st.session_state:
 @st.cache_data
 def load_data():
     try:
-        # --- [START] 修正 #1: 使用您最新的檔案名稱 ---
+        # --- [START] 修正檔案名稱: 使用您最新的檔案名稱 ---
         school_df = pd.read_csv("database_school_info.csv") 
         article_df = pd.read_csv("database_related_article.csv")
-        # --- [END] 修正 #1 ---
+        # --- [END] 修正檔案名稱 ---
         
         school_df.columns = school_df.columns.str.strip()
         article_df.columns = article_df.columns.str.strip()
         
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
-        # --- [START] 修正 #2: 強制清理時間欄位 ---
-        # 定義可能存在空格或被誤判為數字的時間欄位
+        # --- [START] 修正時間欄位: 強制清理時間欄位 ---
+        # 定義時間欄位
         time_cols_to_clean = ["上課時間_", "放學時間", "午膳時間", "午膳結束時間"]
         for col in time_cols_to_clean:
             if col in school_df.columns:
                 # 強制轉為 string 並移除前後空格
                 school_df[col] = school_df[col].astype(str).str.strip()
-        # --- [END] 修正 #2 ---
+        # --- [END] 修正時間欄位 ---
 
         for col in school_df.select_dtypes(include=['object']).columns:
-            if school_df[col].dtype == 'object':
+            if col not in time_cols_to_clean and school_df[col].dtype == 'object':
                 school_df[col] = school_df[col].str.replace('<br>', '\n', regex=False).str.strip()
         
         if '學校名稱' in school_df.columns:
