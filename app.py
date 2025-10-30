@@ -105,10 +105,16 @@ if school_df is not None and article_df is not None:
     }
 
     if not st.session_state.search_mode:
-        st.subheader("根據學校名稱搜尋")
-        school_name_query = st.text_input("輸入學校名稱關鍵字", key="school_name_search", label_visibility="collapsed")
         
-        # --- [START] MODIFIED UI SECTION 1: Basic Info (now in an expander) ---
+        # --- [START] MODIFIED UI SECTION 3: Text Input ---
+        school_name_query = st.text_input(
+            "根據學校名稱搜尋", 
+            placeholder="請輸入學校名稱關鍵字...", 
+            key="school_name_search"
+        )
+        # --- [END] MODIFIED UI SECTION 3 ---
+
+        # --- [START] MODIFIED UI SECTION 1: Basic Info (in expander) ---
         with st.expander("根據學校基本資料篩選"):
             # Row 1 with 5 columns
             r1c1, r1c2, r1c3, r1c4, r1c5 = st.columns(5)
@@ -126,7 +132,7 @@ if school_df is not None and article_df is not None:
             with r2c4: selected_transport = st.multiselect("校車服務", ["校車", "保姆車"], key="transport")
         # --- [END] MODIFIED UI SECTION 1 ---
 
-        # --- [START] MODIFIED UI SECTION 2: Homework (now in an expander) ---
+        # --- [START] MODIFIED UI SECTION 2: Homework (in expander) ---
         with st.expander("根據課業安排篩選"):
             assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
             
@@ -227,7 +233,7 @@ if school_df is not None and article_df is not None:
                 "小一上學期多元化評估": col_map["g1_diverse_assessment"],
                 "二至六年級測驗次數": col_map["g2_6_tests"], "二至六年級考試次數": col_map["g2_6_exams"],
                 "下午設導修課": col_map["tutorial_session"],
-                "多元學習評估": "多元學習評V估",
+                "多元學習評估": "多元學習評估",
                 "避免長假期後測考": "避免緊接在長假期後安排測考_讓學生在假期有充分的休息",
                 "網上校本課業政策": "將校本課業政策上載至學校網頁_讓公眾及持份者知悉",
                 "制定校本課業政策": "制定適切的校本課業政策_讓家長了解相關安排_並定期蒐集教師_學生和家長的意見",
