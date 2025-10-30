@@ -106,23 +106,20 @@ if school_df is not None and article_df is not None:
 
     if not st.session_state.search_mode:
         
-        # --- [START] MODIFIED UI SECTION 3: Text Input ---
         school_name_query = st.text_input(
             "根據學校名稱搜尋", 
             placeholder="請輸入學校名稱關鍵字...", 
             key="school_name_search"
         )
-        # --- [END] MODIFIED UI SECTION 3 ---
 
-        # --- [START] MODIFIED UI SECTION 1: Basic Info (in expander) ---
+        # --- [START] MODIFIED UI SECTION: Basic Info (4x2 grid) ---
         with st.expander("根據學校基本資料篩選"):
-            # Row 1 with 5 columns
-            r1c1, r1c2, r1c3, r1c4, r1c5 = st.columns(5)
+            # Row 1 with 4 columns
+            r1c1, r1c2, r1c3, r1c4 = st.columns(4)
             with r1c1: selected_region = st.multiselect("區域", sorted(school_df["區域"].unique()), key="region")
             with r1c2: selected_net = st.multiselect("小一學校網", sorted(school_df["小一學校網"].dropna().unique()), key="net")
             with r1c3: selected_cat1 = st.multiselect("資助類型", sorted(school_df["資助類型"].unique()), key="cat1")
             with r1c4: selected_gender = st.multiselect("學生性別", sorted(school_df["學生性別"].unique()), key="gender")
-            with r1c5: selected_session = st.multiselect("上課時間", sorted(school_df["上課時間"].unique()), key="session")
             
             # Row 2 with 4 columns
             r2c1, r2c2, r2c3, r2c4 = st.columns(4)
@@ -130,13 +127,11 @@ if school_df is not None and article_df is not None:
             with r2c2: selected_language = st.multiselect("教學語言", sorted(school_df["教學語言"].dropna().unique()), key="lang")
             with r2c3: selected_related = st.multiselect("關聯學校類型", ["一條龍中學", "直屬中學", "聯繫中學"], key="related")
             with r2c4: selected_transport = st.multiselect("校車服務", ["校車", "保姆車"], key="transport")
-        # --- [END] MODIFIED UI SECTION 1 ---
+        # --- [END] MODIFIED UI SECTION ---
 
-        # --- [START] MODIFIED UI SECTION 2: Homework (in expander) ---
         with st.expander("根據課業安排篩選"):
             assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
             
-            # --- Row 1: Assessment Counts ---
             c1, c2, c3, c4 = st.columns(4)
             with c1:
                 selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options, key="g1_tests")
@@ -147,17 +142,13 @@ if school_df is not None and article_df is not None:
             with c4:
                 selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options, key="g2_6_exams")
 
-            # --- Row 2: Policies ---
             c5, c6 = st.columns(2)
             with c5:
-                # Shortened label for a tighter UI
                 use_diverse_assessment = st.checkbox("小一上學期以多元化評估代替測考", key="diverse")
             with c6:
-                # Shortened label for a tighter UI
                 has_tutorial_session = st.checkbox("下午設導修課 (教師指導家課)", key="tutorial")
-        # --- [END] MODIFIED UI SECTION 2 ---
         
-        st.write("") # Add a little space before the button
+        st.write("") 
         if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
             st.session_state.search_mode = True
             
@@ -167,7 +158,11 @@ if school_df is not None and article_df is not None:
             if selected_region: mask &= school_df["區域"].isin(selected_region)
             if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
             if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
-            if selected_session: mask &= school_df["上課時間"].isin(selected_session)
+            
+            # --- [START] REMOVED FILTER LOGIC ---
+            # if selected_session: mask &= school_df["上課時間"].isin(selected_session) # This line is removed
+            # --- [END] REMOVED FILTER LOGIC ---
+            
             if selected_religion: mask &= school_df["宗教"].isin(selected_religion)
             if selected_language: mask &= school_df["教學語言"].isin(selected_language)
             if selected_net: mask &= school_df["小一學校網"].isin(selected_net)
