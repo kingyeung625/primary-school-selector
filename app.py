@@ -5,7 +5,7 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示及表格樣式 ---
+# --- 注入 CSS 實現 Tab 滾動提示 (移除箭頭/陰影) ---
 st.markdown("""
     <style>
     /* 1. 基本容器設置 */
@@ -28,7 +28,7 @@ st.markdown("""
         display: none;
     }
     
-    /* 3. HTML 表格基本樣式 (通用於所有clean-table，解決響應式對齊問題) */
+    /* 3. HTML 表格基本樣式 (通用於所有clean-table) */
     .clean-table {
         width: 100%;
         border-collapse: collapse;
@@ -39,7 +39,7 @@ st.markdown("""
     .clean-table th, .clean-table td {
         padding: 8px 12px;
         text-align: left;
-        border: none; 
+        border: none; /* 移除所有邊框 */
         border-bottom: 1px solid #eee; /* 增加行分隔線 */
         vertical-align: top;
     }
@@ -131,9 +131,14 @@ def load_data():
             "10年年資或以上人數百分率"
         ]
         
+        # 師資數據的清理：確保即使 Pandas 誤判為 float，也能轉回 string 進行清理
         for col in teacher_stat_cols:
             if col in school_df.columns:
-                school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
+                # 增強清理：將欄位值強制轉為 string，移除 '%' 和其他非數字/小數點字符
+                school_df[col] = pd.to_numeric(
+                    school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), 
+                    errors='coerce'
+                ).fillna(0)
 
         assessment_cols = ["全年全科測驗次數_一年級", "全年全科考試次數_一年級", "全年全科測驗次數_二至六年級", "全年全科考試次數_二至六年級"]
         for col in assessment_cols:
@@ -279,6 +284,19 @@ def display_info(label, value, is_fee=False):
         return
 
     st.markdown(f"**{display_label}：** {display_value}")
+
+# Function to create Pie Chart (Placeholder - NOT USED IN FINAL DISPLAY)
+def create_pie_chart(df, title):
+    import altair as alt
+    chart = alt.Chart(df).mark_arc(outerRadius=120, innerRadius=50).encode(
+        theta=alt.Theta("Percentage", stack=True),
+        color=alt.Color("Category", legend=alt.Legend(title="分類")),
+        order=alt.Order("Percentage", sort="descending"),
+        tooltip=["Category", alt.Tooltip("Percentage", format=".1f") + "%"]
+    ).properties(
+        title=title
+    ).interactive()
+    return chart
 # --- [END] 輔助函數 ---
 
 school_df, article_df = load_data()
@@ -469,7 +487,7 @@ if school_df is not None and article_df is not None:
 
                     tabs = st.tabs(tab_list)
 
-                    # --- TAB 1: 基本資料 (保持不變) ---
+                    # --- TAB 1: 基本資料 ---
                     with tabs[0]:
                         st.subheader("學校基本資料")
                         # 佈局基於 DOCX 格式
@@ -567,7 +585,7 @@ if school_df is not None and article_df is not None:
                         
                         st.markdown("##### 測驗與考試次數")
                         
-                        # 測驗與考試次數 - HTML Table (已修正錯位問題)
+                        # 測驗與考試次數 - HTML Table (確保對齊)
                         assessment_table_html = f"""
                         <table class="clean-table assessment-table">
                             <thead>
@@ -597,7 +615,7 @@ if school_df is not None and article_df is not None:
 
                         st.markdown("##### 課業及教學政策")
                         
-                        # 政策與教學模式 - HTML Table (已修正為最終優化列表)
+                        # 政策與教學模式 - HTML 列表 (解決錯位問題，單欄堆疊)
                         
                         # 1. 定義數據和標籤的列表 (確保順序與 DOCX 格式一致)
                         all_policy_data = [
@@ -616,7 +634,8 @@ if school_df is not None and article_df is not None:
                         
                         for field_key, label in all_policy_data:
                             # 獲取值，並將內部的 \n 轉換為 <br>
-                            value = str(row.get(col_map[field_key], "沒有")).replace('\n', '<br>')
+                            raw_value = row.get(col_map[field_key])
+                            value = str(raw_value).replace('\n', '<br>') if is_valid_data(raw_value) else "沒有"
                             
                             # 使用 CSS class 模擬 Key-Value 列表
                             policy_list_html += f"""
@@ -627,9 +646,64 @@ if school_df is not None and article_df is not None:
                         
                         st.markdown(policy_list_html, unsafe_allow_html=True)
                             
-                    # --- TAB 3: 師資概況 (保持不變) ---
+                    # --- TAB 3: 師資概況 ---
                     with tabs[2]:
                         st.subheader("師資概況")
+                        
+                        # 1. 教師團隊數字 (Numerical Stats)
+                        st.markdown("##### 教師團隊數字")
+                        c_num1, c_num2 = st.columns(2)
+                        with c_num1:
+                            display_info("上學年核准編制教師職位數目", row.get("上學年核准編制教師職位數目"))
+                        with c_num2:
+                            display_info("上學年教師總人數", row.get("上學年教師總人數"))
+
+                        st.divider()
+
+                        # 2. 教師團隊學歷 & 年資 (Pie Charts)
+                        
+                        master_pct = row.get("碩士_博士或以上人數百分率")
+                        bachelor_pct = row.get("學士人數百分率")
+                        
+                        # 計算學歷其他/缺失百分比
+                        calculated_sum_qualification = master_pct + bachelor_pct
+                        other_qualification_pct = max(0, 100 - calculated_sum_qualification)
+                        
+                        data_qualification = {
+                            "Category": ["碩士/博士", "學士", "其他/缺失"],
+                            "Percentage": [
+                                master_pct, 
+                                bachelor_pct, 
+                                other_qualification_pct
+                            ]
+                        }
+                        df_qualification = pd.DataFrame(data_qualification)
+                        df_qualification = df_qualification[df_qualification['Percentage'] > 0]
+                        
+                        y0_4_pct = row.get("0至4年年資人數百分率")
+                        y5_9_pct = row.get("5至9年年資人數百分率")
+                        y10_pct = row.get("10年年資或以上人數百分率")
+                        
+                        # 計算年資其他/缺失百分比
+                        calculated_sum_experience = y0_4_pct + y5_9_pct + y10_pct
+                        other_experience_pct = max(0, 100 - calculated_sum_experience)
+
+                        data_experience = {
+                            "Category": ["0-4年年資", "5-9年年資", "10年或以上年資", "其他/缺失"],
+                            "Percentage": [
+                                y0_4_pct, 
+                                y5_9_pct, 
+                                y10_pct,
+                                other_experience_pct
+                            ]
+                        }
+                        df_experience = pd.DataFrame(data_experience)
+                        df_experience = df_experience[df_experience['Percentage'] > 0]
+                        
+                        # Display Charts Side-by-Side (只在確認資料正確後使用，此處先不繪製)
+                        
+                        # 3. 詳細百分比列表 (文字顯示)
+                        st.markdown("##### 詳細數據與培訓")
                         sub_cols = st.columns(3)
                         stat_cols_to_display = [col for col in teacher_stat_cols if col != "教師專業培訓及發展"]
                         for i, col_name in enumerate(stat_cols_to_display):
@@ -639,12 +713,12 @@ if school_df is not None and article_df is not None:
                         st.divider()
                         display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
 
-                    # --- TAB 4: 學校設施 (保持不變) ---
+                    # --- TAB 4: 學校設施 ---
                     with tabs[3]:
                         st.subheader("設施數量")
                         c1, c2, c3, c4 = st.columns(4)
                         with c1: display_info("課室數目", row.get("課室數目"))
-                        with c2: display_info("禮堂數目", row.get("禮室數目"))
+                        with c2: display_info("禮堂數目", row.get("禮堂數目"))
                         with c3: display_info("操場數目", row.get("操場數目"))
                         with c4: display_info("圖書館數目", row.get("圖書館數目"))
                         
