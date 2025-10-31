@@ -330,11 +330,11 @@ def display_info(label, value, is_fee=False):
             else:
                 display_value = val_str
         elif is_time_field and ':' in val_str:
-            # 時間格式化邏輯
+            # 時間格式化邏輯 (只取時:分)
             try:
                 parts = val_str.split(':')
                 if len(parts) >= 2:
-                    display_value = f"{parts[0]}:{parts[1]}"
+                    display_value = f"{parts[0].zfill(2)}:{parts[1].zfill(2)}"
                 else:
                     display_value = val_str
             except:
@@ -604,7 +604,7 @@ if school_df is not None and article_df is not None:
                 "教師專業培訓及發展"
             ]
             other_categories = {
-                "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色", "校訓"], # 新增「校訓」
+                "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色", "校訓"], # 包含「校訓」
             }
             facility_cols_counts = ["課室數目", "禮堂數目", "操場數目", "圖書館數目"]
             facility_cols_text = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
@@ -626,7 +626,7 @@ if school_df is not None and article_df is not None:
                 # 建立 tabs 列表
                 tab_list = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構"]
                 if has_mission_data:
-                    # 將 Tab 名稱改為「辦學理念」
+                    # Tab 名稱已改為「辦學理念」
                     tab_list.append("辦學理念") 
                 tab_list.append("聯絡資料")
                 
@@ -645,7 +645,7 @@ if school_df is not None and article_df is not None:
 
                     tabs = st.tabs(tab_list)
 
-                    # --- TAB 1: 基本資料 (已優化：時間信息移入主體) ---
+                    # --- TAB 1: 基本資料 ---
                     with tabs[0]:
                         st.subheader("學校基本資料")
                         # 佈局基於 DOCX 格式
@@ -711,10 +711,27 @@ if school_df is not None and article_df is not None:
                         st.divider()
                         st.subheader("上學、午膳及交通安排")
                         
-                        # 整合後的上學及午膳資訊 (移除 '上課時間_', '放學時間', '午膳時間')
-                        # 修正: 將被要求移除的時間欄位直接移除
-                        c_time_lunch1, c_time_lunch2 = st.columns(2)
-                        with c_time_lunch1:
+                        # --- [修改區 START]：新增上學時間、放學時間、午膳開始時間 ---
+                        
+                        # 第一排：上學時間 & 放學時間
+                        c_time1, c_time2 = st.columns(2)
+                        with c_time1:
+                            display_info("上課時間_", row.get("上課時間_")) # 對應 CC 欄
+                        with c_time2:
+                            display_info("放學時間", row.get("放學時間")) # 對應 CD 欄
+                        
+                        # 第二排：午膳安排 & 午膳時間
+                        c_lunch1, c_lunch2 = st.columns(2)
+                        with c_lunch1:
+                            display_info("午膳安排", row.get("午膳安排"))
+                        with c_lunch2:
+                            display_info("午膳時間", row.get("午膳時間")) # 對應 CE 欄
+
+                        # 第三排：午膳結束時間 & 交通安排
+                        c_lunch_end, c_transport = st.columns(2)
+                        with c_lunch_end:
+                            display_info("午膳結束時間", row.get("午膳結束時間"))
+                        with c_transport:
                             # 校車/保姆車
                             has_bus, has_van = row.get("校車") == "有", row.get("保姆車") == "有"
                             transport_status = "沒有"
@@ -723,11 +740,7 @@ if school_df is not None and article_df is not None:
                             elif has_van: transport_status = "有保姆車"
                             display_info("校車或保姆車", transport_status)
                             
-                            display_info("午膳安排", row.get("午膳安排"))
-                            
-                        with c_time_lunch2:
-                            # 僅保留午膳結束時間
-                            display_info("午膳結束時間", row.get("午膳結束時間"))
+                        # --- [修改區 END] ---
 
                         st.divider()
                         st.subheader("費用")
@@ -938,8 +951,6 @@ if school_df is not None and article_df is not None:
                     tab_index = 5
                     if has_mission_data:
                         with tabs[tab_index]:
-                            # 移除 st.subheader("辦學理念")
-
                             # 顯示校訓
                             display_info("校訓", row.get("校訓"))
                             
