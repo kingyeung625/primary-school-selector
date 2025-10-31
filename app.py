@@ -643,7 +643,7 @@ if school_df is not None and article_df is not None:
 
                     tabs = st.tabs(tab_list)
 
-                    # --- TAB 1: 基本資料 (已優化：時間信息移入主體) ---
+                    # --- TAB 1: 基本資料 (已優化：上學時間移至此處) ---
                     with tabs[0]:
                         st.subheader("學校基本資料")
                         # 佈局基於 DOCX 格式
@@ -662,14 +662,11 @@ if school_df is not None and article_df is not None:
                         c7, c8 = st.columns(2)
                         with c7: display_info("宗教", row.get("宗教"))
                         with c8: display_info("學校佔地面積", row.get("學校佔地面積"))
-                        
-                        # === 上課時間/午膳時間/交通安排 整合 START ===
-                        # 將原本在 sub-sections 中的數據提升到主體部分
-                        st.divider()
 
                         c9, c10 = st.columns(2)
                         with c9: display_info("教學語言", row.get("教學語言"))
                         
+                        # 關聯學校邏輯
                         with c10: 
                             related_dragon_val = row.get("一條龍中學")
                             related_feeder_val = row.get("直屬中學")
@@ -690,37 +687,48 @@ if school_df is not None and article_df is not None:
                                 if has_linked:
                                     display_info("聯繫中學", related_linked_val)
 
-                        st.subheader("上學、午膳及聯絡資訊")
-                        
                         c11, c12 = st.columns(2)
                         with c11:
-                            # 校車/保姆車
+                            principal_name = str(row.get("校長姓名", "")).strip()
+                            principal_title = str(row.get("校長稱謂", "")).strip()
+                            principal_display = f"{principal_name}{principal_title}" if is_valid_data(principal_name) else None
+                            display_info("校長", principal_display)
+                        with c12:
+                            supervisor_name = str(row.get("校監_校管會主席姓名", "")).strip()
+                            supervisor_title = str(row.get("校監_校管會主席稱謂", "")).strip()
+                            supervisor_display = f"{supervisor_name}{supervisor_title}" if is_valid_data(supervisor_name) else None
+                            display_info("校監_校管會主席姓名", supervisor_display)
+
+                        c13, c14 = st.columns(2)
+                        with c13: display_info("家長教師會", row.get("家長教師會"))
+                        with c14: display_info("舊生會_校友會", row.get("舊生會_校友會"))
+
+                        st.divider()
+                        st.subheader("上學及放學安排")
+                        
+                        c_transport1, c_transport2 = st.columns(2)
+                        with c_transport1:
                             has_bus, has_van = row.get("校車") == "有", row.get("保姆車") == "有"
                             transport_status = "沒有"
                             if has_bus and has_van: transport_status = "有校車及保姆車"
                             elif has_bus: transport_status = "有校車"
                             elif has_van: transport_status = "有保姆車"
                             display_info("校車或保姆車", transport_status)
-                            
-                            # **整合上學時間**
-                            display_info("上課時間_", row.get("上課時間_")) 
-                            display_info("午膳安排", row.get("午膳安排"))
-                            
-                        with c12:
-                            # 聯絡人信息 (保持原位)
-                            principal_name = str(row.get("校長姓名", "")).strip()
-                            principal_title = str(row.get("校長稱謂", "")).strip()
-                            principal_display = f"{principal_name}{principal_title}" if is_valid_data(principal_name) else None
-                            display_info("校長", principal_display)
-                            
-                            display_info("放學時間", row.get("放學時間"))
-                            display_info("午膳時間", row.get("午膳時間"))
+                        
+                        c15, c16 = st.columns(2)
+                        # 修正: 這裡應該調用 "上課時間_" 的數據，但使用 "一般上學時間" 標籤
+                        with c15: display_info("上課時間_", row.get("上課時間_")) 
+                        with c16: display_info("放學時間", row.get("放學時間"))
 
-
-                        c13, c14 = st.columns(2)
-                        with c13: display_info("家長教師會", row.get("家長教師會"))
-                        with c14: display_info("舊生會_校友會", row.get("舊生會_校友會"))
-
+                        st.divider()
+                        st.subheader("午膳安排")
+                        
+                        c_lunch1, c_lunch2 = st.columns(2)
+                        with c_lunch1: display_info("午膳安排", row.get("午膳安排"))
+                        
+                        c17, c18 = st.columns(2)
+                        with c17: display_info("午膳時間", row.get("午膳時間"))
+                        with c18: display_info("午膳結束時間", row.get("午膳結束時間"))
 
                         st.divider()
                         st.subheader("費用")
