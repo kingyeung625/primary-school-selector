@@ -5,7 +5,7 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="小學概覽選校搜尋器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示、表格樣式、側邊欄按鈕優化及顏色背景設定 ---
+# --- 注入 CSS 實現 Tab 滾動提示、表格樣式、側邊欄按鈕優化及 [NEW] 顏色背景設定 ---
 st.markdown("""
     <style>
     /* [NEW] 顏色背景設定 */
@@ -24,6 +24,24 @@ st.markdown("""
     /* [NEW] 側邊欄透明化，確保背景可見 */
     [data-testid="stSidebar"] {
         background-color: rgba(255, 255, 255, 0.85); /* 85% 透明度的白色，與米黃色背景形成柔和對比 */
+    }
+
+    /* 確保 Logo 和標題在同一行並垂直居中 */
+    .header-container {
+        display: flex;
+        align-items: center;
+        gap: 15px; /* Logo 和標題之間的間距 */
+        margin-bottom: 0rem;
+    }
+    .header-title {
+        font-size: 2.25rem; /* 模擬 st.title 的大小 */
+        font-weight: 700;
+        margin: 0;
+        padding-top: 5px; /* 輕微調整以與 Logo 更好地對齊 */
+    }
+    .header-logo {
+        height: 50px; /* 控制 Logo 的大小 */
+        width: auto;
     }
 
     /* 1. 基本容器設置 */
@@ -142,12 +160,16 @@ st.markdown("""
 
 # --- Logo 及 主標題 (修改區) ---
 
-# 1. 顯示 Logo
-# 這裡使用 st.image 將您上傳的 Logo 放在主頁面頂部
-st.image("images.png", width=100) # 設置一個合適的寬度
+LOGO_URL = "https://raw.githubusercontent.com/kingyeung625/primary-school-selector/0147c6564ccd706049b1c3ed9885ecc920f70f9f/images.png"
+TITLE_TEXT = "小學概覽選校搜尋器"
 
-# 2. 顯示新標題
-st.title("小學概覽選校搜尋器")
+# 使用 st.markdown 和 HTML 結構將 Logo 和標題放在同一行
+st.markdown(f"""
+    <div class="header-container">
+        <img class="header-logo" src="{LOGO_URL}" alt="App Logo">
+        <h1 class="header-title">{TITLE_TEXT}</h1>
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- 初始化 Session State ---
 if 'search_mode' not in st.session_state:
