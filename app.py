@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import altair as alt # <-- [新增] 引入 Altair 用於繪製圖表
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
@@ -147,12 +148,17 @@ def load_data():
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
+        # 這裡調整了百分比欄位的名稱，以確保與您的數據一致
         teacher_stat_cols = [
-            "已接受師資培训人數百分率", "學士人數百分率", 
-            "碩士_博士或以上人數百分率", "特殊教育培訓人數百分率",
+            "已接受師資培訓人數百分率", "學士人數百分率", 
+            "碩士／博士或以上人數百分率", "特殊教育培訓人數百分率",
             "0至4年年資人數百分率", "5至9年年資人數百分率", 
             "10年年資或以上人數百分率"
         ]
+        
+        # 修正列名中可能的"培训"到"培訓"的差異 (若原始CSV使用"培训")
+        if "已接受師資培训人數百分率" in school_df.columns and "已接受師資培訓人數百分率" not in school_df.columns:
+             school_df.rename(columns={"已接受師資培训人數百分率": "已接受師資培訓人數百分率"}, inplace=True)
         
         for col in teacher_stat_cols:
             if col in school_df.columns:
@@ -182,6 +188,7 @@ def load_data():
         return None, None
 
 # --- [START] 輔助函數 ---
+# ... (LABEL_MAP, is_valid_data, display_assessment_count, style_filter_button, display_info 保持不變)
 LABEL_MAP = { 
     "校監_校管會主席姓名": "校監", 
     "校長姓名": "校長",
@@ -192,13 +199,13 @@ LABEL_MAP = {
     "午膳結束時間": "午膳結束時間",
     "上學年核准編制教師職位數目": "核准編制教師職位數目",
     "上學年教師總人數": "教師總人數",
-    "上學年已接受師資培训人數百分率": "已接受師資培訓(%)",
-    "上學年學士人數百分率": "學士學位(%)",
-    "上學年碩士_博士或以上人數百分率": "碩士/博士學位(%)",
-    "上學年特殊教育培訓人數百分率": "特殊教育培訓(%)",
-    "上學年0至4年年資人數百分率": "0-4年年資(%)",
-    "上學年5至9年年資人數百分率": "5-9年年資(%)",
-    "上學年10年年資或以上人數百分率": "10+年年資(%)",
+    "已接受師資培訓人數百分率": "已接受師資培訓(%)", 
+    "學士人數百分率": "學士學位(%)",
+    "碩士／博士或以上人數百分率": "碩士/博士學位(%)",
+    "特殊教育培訓人數百分率": "特殊教育培訓(%)",
+    "0至4年年資人數百分率": "0-4年年資(%)", 
+    "5至9年年資人數百分率": "5-9年年資(%)", 
+    "10年年資或以上人數百分率": "10+年年資(%)", 
     "課室數目": "課室",
     "禮堂數目": "禮堂",
     "操場數目": "操場",
@@ -746,17 +753,74 @@ if school_df is not None and article_df is not None:
                         
                         st.markdown(policy_list_html, unsafe_allow_html=True)
                             
-                    # --- TAB 3: 師資概況 (保持不變) ---
+                    # --- TAB 3: 師資概況 (已修改為圖表模式) ---
                     with tabs[2]:
-                        st.subheader("師資概況")
-                        sub_cols = st.columns(3)
-                        stat_cols_to_display = [col for col in teacher_stat_cols if col != "教師專業培訓及發展"]
-                        for i, col_name in enumerate(stat_cols_to_display):
-                            with sub_cols[i % 3]:
-                                display_info(col_name, row.get(col_name))
+                        st.subheader("師資團隊數字")
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            display_info("上學年核准編制教師職位數目", row.get("上學年核准編制教師職位數目"))
+                        with c2:
+                            display_info("上學年教師總人數", row.get("上學年教師總人數"))
+
+                        st.divider()
+                        st.subheader("教師團隊學歷及培訓（百分比）")
+
+                        # 1. 準備學歷及培訓數據
+                        qual_data = {
+                            '類別': ['已接受師資培訓', '學士學位', '碩士/博士學位', '特殊教育培訓'],
+                            '百分比': [
+                                row.get("已接受師資培訓人數百分率", 0),
+                                row.get("學士人數百分率", 0),
+                                row.get("碩士／博士或以上人數百分率", 0),
+                                row.get("特殊教育培訓人數百分率", 0)
+                            ]
+                        }
+                        qual_df = pd.DataFrame(qual_data)
+                        
+                        # 2. 繪製條形圖 (Bar Chart)
+                        bar_chart = alt.Chart(qual_df).mark_bar(color='#1abc9c').encode(
+                            x=alt.X('百分比', title='百分比 (%)', axis=alt.Axis(format='~s')),
+                            y=alt.Y('類別', title=None, sort='-x'), # 依百分比降序排序
+                            tooltip=['類別', alt.Tooltip('百分比', format='.1f')]
+                        ).properties(
+                            title='教師學術及培訓背景百分比'
+                        ).configure_view(
+                            strokeWidth=0 # 移除圖表邊框
+                        ).interactive()
+                        
+                        st.altair_chart(bar_chart, use_container_width=True)
+                        
+                        st.divider()
+                        st.subheader("教師團隊年資分佈（百分比）")
+
+                        # 3. 準備年資數據
+                        seniority_data = {
+                            '年資': ['0-4年年資', '5-9年年資', '10年或以上年資'],
+                            '百分比': [
+                                row.get("0至4年年資人數百分率", 0),
+                                row.get("5至9年年資人數百分率", 0),
+                                row.get("10年年資或以上人數百分率", 0)
+                            ]
+                        }
+                        seniority_df = pd.DataFrame(seniority_data)
+                        
+                        # 4. 繪製圓形圖 (Pie Chart)
+                        pie_chart = alt.Chart(seniority_df).mark_arc(outerRadius=120, innerRadius=50).encode(
+                            theta=alt.Theta(field="百分比", type="quantitative"),
+                            color=alt.Color(field="年資", title="年資類別"),
+                            order=alt.Order("百分比", sort="descending"), # 依百分比降序排列
+                            tooltip=["年資", alt.Tooltip("百分比", format=".1f")]
+                        ).properties(
+                            title='教師年資分佈'
+                        ).configure_view(
+                            strokeWidth=0 # 移除圖表邊框
+                        ).interactive()
+                        
+                        st.altair_chart(pie_chart, use_container_width=True)
                         
                         st.divider()
                         display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
+
 
                     # --- TAB 4: 學校設施 (保持不變) ---
                     with tabs[3]:
