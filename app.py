@@ -281,6 +281,97 @@ def display_info(label, value, is_fee=False):
     st.markdown(f"**{display_label}：** {display_value}")
 # --- [END] 輔助函數 ---
 
+
+# --- [新加入] 側邊欄篩選函數定義 ---
+def render_sidebar_filters(df):
+    """
+    在 Streamlit 側邊欄中呈現地理與學校基礎資訊篩選器，
+    並使用原有的 key 儲存到 session_state 中。
+    """
+    st.sidebar.header("🌍 地理與學校基礎資訊篩選")
+    st.sidebar.markdown("---")
+    
+    # 1. 區域篩選 (key="region")
+    unique_regions = sorted(df['區域'].dropna().unique().tolist())
+    st.sidebar.multiselect(
+        "區域",
+        options=unique_regions,
+        default=st.session_state.get("region", []),
+        key="region" 
+    )
+
+    # 2. 小一學校網篩選 (key="net")
+    # 確保小一學校網為字串類型以進行正確篩選
+    unique_school_nets = sorted(df['小一學校網'].astype(str).dropna().unique().tolist())
+    st.sidebar.multiselect(
+        "小一學校網",
+        options=unique_school_nets,
+        default=st.session_state.get("net", []),
+        key="net"
+    )
+        
+    st.sidebar.markdown("---")
+
+    # 3. 資助類型篩選 (key="cat1")
+    unique_types = sorted(df['資助類型'].dropna().unique().tolist())
+    st.sidebar.multiselect(
+        "資助類型",
+        options=unique_types,
+        default=st.session_state.get("cat1", []),
+        key="cat1"
+    )
+
+    # 4. 學生性別篩選 (key="gender")
+    unique_genders = sorted(df['學生性別'].dropna().unique().tolist())
+    st.sidebar.multiselect(
+        "學生性別",
+        options=unique_genders,
+        default=st.session_state.get("gender", []),
+        key="gender"
+    )
+        
+    # 5. 宗教篩選 (key="religion")
+    unique_religions = sorted([r for r in df['宗教'].dropna().unique().tolist() if r not in ['不適用', '無']])
+    st.sidebar.multiselect(
+        "宗教背景",
+        options=unique_religions,
+        default=st.session_state.get("religion", []),
+        key="religion"
+    )
+
+    # 6. 教學語言篩選 (key="lang")
+    unique_languages = sorted(df['教學語言'].dropna().unique().tolist())
+    st.sidebar.multiselect(
+        "教學語言",
+        options=unique_languages,
+        default=st.session_state.get("lang", []),
+        key="lang"
+    )
+
+    st.sidebar.markdown("---")
+    st.sidebar.header("🤝 關聯與交通篩選")
+
+    # 7. 關聯學校類型 (key="related")
+    st.sidebar.multiselect(
+        "關聯學校類型 (一條龍/直屬/聯繫)", 
+        ["一條龍中學", "直屬中學", "聯繫中學"], 
+        default=st.session_state.get("related", []),
+        key="related"
+    )
+
+    # 8. 校車服務 (key="transport")
+    st.sidebar.multiselect(
+        "校車服務", 
+        ["校車", "保姆車"], 
+        default=st.session_state.get("transport", []),
+        key="transport" 
+    )
+    
+    # 此函數只負責渲染 UI 並更新 session_state，不返回 DataFrame
+    pass
+# --- [END] 側邊欄篩選函數定義 ---
+
+
 school_df, article_df = load_data()
 
 # --- 主應用程式 ---
@@ -301,24 +392,16 @@ if school_df is not None and article_df is not None:
 
     if not st.session_state.search_mode:
         
+        # 呼叫側邊欄篩選器 (將在此處渲染 UI 並更新 session_state)
+        render_sidebar_filters(school_df) 
+        
         school_name_query = st.text_input(
             "根據學校名稱搜尋", 
             placeholder="請輸入學校名稱關鍵字...", 
             key="school_name_search"
         )
-
-        with st.expander("根據學校基本資料篩選"):
-            r1c1, r1c2, r1c3, r1c4 = st.columns(4)
-            with r1c1: selected_region = st.multiselect("區域", sorted(school_df["區域"].unique()), key="region")
-            with r1c2: selected_net = st.multiselect("小一學校網", sorted(school_df["小一學校網"].dropna().unique()), key="net")
-            with r1c3: selected_cat1 = st.multiselect("資助類型", sorted(school_df["資助類型"].unique()), key="cat1")
-            with r1c4: selected_gender = st.multiselect("學生性別", sorted(school_df["學生性別"].unique()), key="gender")
-            
-            r2c1, r2c2, r2c3, r2c4 = st.columns(4)
-            with r2c1: selected_religion = st.multiselect("宗教", sorted(school_df["宗教"].unique()), key="religion")
-            with r2c2: selected_language = st.multiselect("教學語言", sorted(school_df["教學語言"].dropna().unique()), key="lang")
-            with r2c3: selected_related = st.multiselect("關聯學校類型", ["一條龍中學", "直屬中學", "聯繫中學"], key="related")
-            with r2c4: selected_transport = st.multiselect("校車服務", ["校車", "保姆車"], key="transport")
+        
+        # --- 原有的基本篩選器 Expander 已移除 ---
 
         with st.expander("根據課業安排篩選"):
             assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
@@ -367,33 +450,54 @@ if school_df is not None and article_df is not None:
             
             mask = pd.Series(True, index=school_df.index)
             query = school_name_query.strip()
+            
+            # --- 讀取 SIDEBAR 篩選器值並應用過濾 ---
+            selected_region = st.session_state.get("region", [])
+            selected_net = st.session_state.get("net", [])
+            selected_cat1 = st.session_state.get("cat1", [])
+            selected_gender = st.session_state.get("gender", [])
+            selected_religion = st.session_state.get("religion", [])
+            selected_language = st.session_state.get("lang", [])
+            selected_related = st.session_state.get("related", [])
+            selected_transport = st.session_state.get("transport", [])
+            
             if query: mask &= school_df["學校名稱"].str.contains(query, case=False, na=False)
             if selected_region: mask &= school_df["區域"].isin(selected_region)
             if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
             if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
             if selected_religion: mask &= school_df["宗教"].isin(selected_religion)
             if selected_language: mask &= school_df["教學語言"].isin(selected_language)
-            if selected_net: mask &= school_df["小一學校網"].isin(selected_net)
+            # 確保 "小一學校網" 欄位被當作字串進行比較
+            if selected_net: mask &= school_df["小一學校網"].astype(str).isin([str(n) for n in selected_net])
+            
             if selected_related:
                 related_mask = pd.Series(False, index=school_df.index)
                 for col in selected_related:
-                    if col in school_df.columns: related_mask |= is_valid_data(school_df[col])
+                    if col in school_df.columns: 
+                        # 檢查欄位是否有有效數據 (is_valid_data)
+                        related_mask |= school_df[col].apply(lambda x: is_valid_data(x))
                 mask &= related_mask
+            
             if selected_transport:
                 transport_mask = pd.Series(False, index=school_df.index)
                 for col in selected_transport:
                     if col in school_df.columns: transport_mask |= (school_df[col] == "有")
                 mask &= transport_mask
+            # --- SIDEBAR 篩選結束 ---
+            
+            # --- 主體其他篩選邏輯 (保持不變) ---
             def apply_assessment_filter(mask, column, selection):
                 if selection == "0次": return mask & (school_df[column] == 0)
                 elif selection == "不多於1次": return mask & (school_df[column] <= 1)
                 elif selection == "不多於2次": return mask & (school_df[column] <= 2)
                 elif selection == "3次": return mask & (school_df[column] == 3)
                 return mask
+                
             mask = apply_assessment_filter(mask, col_map["g1_tests"], selected_g1_tests)
             mask = apply_assessment_filter(mask, col_map["g1_exams"], selected_g1_exams)
             mask = apply_assessment_filter(mask, col_map["g2_6_tests"], selected_g2_6_tests)
             mask = apply_assessment_filter(mask, col_map["g2_6_exams"], selected_g2_6_exams)
+            
             if use_diverse_assessment: mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
             if has_tutorial_session: mask &= (school_df[col_map["tutorial_session"]] == "有")
             
@@ -404,6 +508,7 @@ if school_df is not None and article_df is not None:
                 mask &= (school_df["10年年資或以上人數百分率"] >= st.session_state.exp_filter)
             if st.session_state.sen_filter > 0:
                 mask &= (school_df["特殊教育培訓人數百分率"] >= st.session_state.sen_filter)
+            # --- 主體其他篩選邏輯結束 ---
 
             st.session_state.filtered_schools = school_df[mask]
             st.rerun()
@@ -424,9 +529,9 @@ if school_df is not None and article_df is not None:
             # 欄位定義 (保持不變)
             fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
             teacher_stat_cols = [
-                "上學年已接受師資培训人數百分率", "上學年學士人數百分率", "上學年碩士_博士或以上人數百分率", 
-                "上學年特殊教育培訓人數百分率", "上學年0至4年年資人數百分率", "5至9年年資人數百分率", 
-                "10年年資或以上人數百分率", "上學年核准編制教師職位數目", "上學年教師總人數", 
+                "已接受師資培訓人數百分率", "學士人數百分率", "碩士／博士或以上人數百分率", 
+                "特殊教育培訓人數百分率", "0至4年年資人數百分率", "5至9年年資人數百分率", 
+                "10年年資或以上人數百分率", "核准編制教師職位數目", "教師總人數", 
                 "教師專業培訓及發展"
             ]
             other_categories = {
@@ -616,7 +721,7 @@ if school_df is not None and article_df is not None:
                         
                         for field_key, label in all_policy_data:
                             # 獲取值，並將內部的 \n 轉換為 <br>
-                            value = str(row.get(col_map[field_key], "沒有")).replace('\n', '<br>')
+                            value = str(row.get(field_key, "沒有")).replace('\n', '<br>')
                             
                             # 使用 CSS class 模擬 Key-Value 列表
                             policy_list_html += f"""
@@ -644,7 +749,7 @@ if school_df is not None and article_df is not None:
                         st.subheader("設施數量")
                         c1, c2, c3, c4 = st.columns(4)
                         with c1: display_info("課室數目", row.get("課室數目"))
-                        with c2: display_info("禮堂數目", row.get("禮室數目"))
+                        with c2: display_info("禮堂數目", row.get("禮堂數目"))
                         with c3: display_info("操場數目", row.get("操場數目"))
                         with c4: display_info("圖書館數目", row.get("圖書館數目"))
                         
