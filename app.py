@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import altair as alt # <-- 確保 altair 庫已匯入並使用別名 alt
+# Removed: import altair as alt # <-- 已移除 Altair 庫
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
@@ -94,6 +94,28 @@ st.markdown("""
     button[data-testid="baseButton-headerNoPadding"]:hover,
     button[data-testid="stSidebarCloseButton"]:hover {
         color: #3498db !important; /* 懸停時變為藍色 */
+    }
+    /* 新增：統一表格樣式，將數據欄置中 */
+    .info-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+    }
+    .info-table th {
+        background-color: #f7f7f7;
+        font-weight: 600;
+        border-bottom: 2px solid #ccc;
+        padding: 8px 12px;
+        text-align: center;
+    }
+    .info-table td {
+        padding: 6px 12px;
+        border-bottom: 1px solid #eee;
+        text-align: left;
+    }
+    .info-table td:nth-child(2) {
+        text-align: center;
+        font-weight: bold;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -608,7 +630,7 @@ if school_df is not None and article_df is not None:
                 with st.expander(f"**{row['學校名稱']}**"):
                     
                     # --- 相關文章 ---
-                    related_articles = article_df[article_df["學校名稱"] == row["學校名稱"]]
+                    related_articles = article_df[related_articles["學校名稱"] == row["學校名稱"]] # 修正了變量名錯誤
                     if not related_articles.empty:
                         with st.expander("相關文章", expanded=False): 
                             for _, article_row in related_articles.iterrows():
@@ -781,103 +803,86 @@ if school_df is not None and article_df is not None:
                     with tabs[2]:
                         st.subheader("師資團隊數字")
                         c1, c2 = st.columns(2)
+                        
+                        # 確保實數可以正常顯示
                         with c1:
-                            # 使用 CSV 實際名稱
                             display_info("核准編制教師職位數目", row.get("核准編制教師職位數目")) 
                         with c2:
                             display_info("教師總人數", row.get("教師總人數"))
 
                         st.divider()
-                        st.subheader("教師團隊學歷及培訓（百分比）")
+                        
+                        # === 教師團隊學歷及年資：HTML 表格顯示 START ===
+                        
+                        col_qual, col_seniority = st.columns(2)
 
-                        # 1. 準備學歷及培訓數據
+                        # 1. 教師團隊學歷及培訓 表格
                         qual_cols_map = {
                             "已接受師資培訓人數百分率": "已接受師資培訓", 
                             "學士人數百分率": "學士學位", 
                             "碩士／博士或以上人數百分率": "碩士/博士學位", 
                             "特殊教育培訓人數百分率": "特殊教育培訓"
                         }
-                        qual_data = []
+                        
+                        qual_table_html = """
+                        <div style="font-weight: bold; margin-bottom: 8px;">教師團隊學歷及培訓</div>
+                        <table class="info-table">
+                            <thead>
+                                <tr>
+                                    <th>類別</th>
+                                    <th>百分比</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                        """
                         for col_name, display_label in qual_cols_map.items():
-                            qual_data.append({
-                                '類別': display_label,
-                                '百分比': row.get(col_name, 0) 
-                            })
-                        qual_df = pd.DataFrame(qual_data)
-                        
-                        # 2. 繪製條形圖 (Bar Chart)
-                        scale_domain = [0, 100]
-                        bars = alt.Chart(qual_df).mark_bar(color='#1abc9c').encode(
-                            # X 軸格式化為百分比, 並設定 scale domain
-                            x=alt.X('百分比', title='百分比', scale=alt.Scale(domain=scale_domain)), 
-                            # Y 軸使用移除 % 的類別名稱
-                            y=alt.Y('類別', title=None, sort='-x'), 
-                            # 提示框格式化為百分比
-                            tooltip=['類別', alt.Tooltip('百分比', format='.1f%')]
-                        )
-                        
-                        # 2b. 加入文字標籤 (置中、白色字體、粗體、大字體、加 % 符號)
-                        text = bars.mark_text(
-                            align='center', 
-                            baseline='middle',
-                            fontSize=14, # 放大字體
-                            fontWeight='bold' # 加粗
-                        ).encode(
-                            text=alt.Text('百分比', format='.1f%'), # 顯示百分比數字並加 % 符號
-                            color=alt.value('white') # 文字顏色設為白色
-                        )
+                            value = row.get(col_name, 0)
+                            display_value = f"{value:.1f}%"
+                            qual_table_html += f"""
+                                <tr>
+                                    <td>{display_label}</td>
+                                    <td>{display_value}</td>
+                                </tr>
+                            """
+                        qual_table_html += "</tbody></table>"
 
-                        bar_chart = (bars + text).properties(
-                            title='教師學術及培訓背景'
-                        ).configure_view(
-                            strokeWidth=0 # 移除圖表邊框
-                        ).interactive()
-                        
-                        st.altair_chart(bar_chart, use_container_width=True)
-                        
-                        st.divider()
-                        st.subheader("教師團隊年資分佈（百分比）")
-
-                        # 3. 準備年資數據
+                        # 2. 教師團隊年資分佈 表格
                         seniority_cols_map = {
                             "0至4年年資人數百分率": "0-4年年資", 
                             "5至9年年資人數百分率": "5-9年年資", 
                             "10年年資或以上人數百分率": "10+年年資"
                         }
-                        seniority_data = []
+
+                        seniority_table_html = """
+                        <div style="font-weight: bold; margin-bottom: 8px;">教師團隊年資分佈</div>
+                        <table class="info-table">
+                            <thead>
+                                <tr>
+                                    <th>年資</th>
+                                    <th>百分比</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                        """
                         for col_name, display_label in seniority_cols_map.items():
-                            seniority_data.append({
-                                '年資': display_label,
-                                '百分比': row.get(col_name, 0)
-                            })
-                        seniority_df = pd.DataFrame(seniority_data)
+                            value = row.get(col_name, 0)
+                            display_value = f"{value:.1f}%"
+                            seniority_table_html += f"""
+                                <tr>
+                                    <td>{display_label}</td>
+                                    <td>{display_value}</td>
+                                </tr>
+                            """
+                        seniority_table_html += "</tbody></table>"
                         
-                        # 4. 繪製圓形圖 (Pie Chart)
-                        base = alt.Chart(seniority_df).encode(
-                            theta=alt.Theta("百分比", stack=True)
-                        )
+                        # 將兩個表格並排放置
+                        with col_qual:
+                            st.markdown(qual_table_html, unsafe_allow_html=True)
+                        with col_seniority:
+                            st.markdown(seniority_table_html, unsafe_allow_html=True)
+                        
+                        # === 教師團隊學歷及年資：HTML 表格顯示 END ===
 
-                        pie = base.mark_arc(outerRadius=120, innerRadius=50).encode(
-                            color=alt.Color(field="年資", title="年資類別"),
-                            order=alt.Order("百分比", sort="descending"), 
-                            tooltip=["年資", alt.Tooltip("百分比", format=".1f%")] # 提示框加 % 符號
-                        )
-                        
-                        # 4b. 加入文字標籤 (數字) (粗體、大字體、加 % 符號)
-                        text_pie = base.mark_text(radius=100, fontSize=14, fontWeight='bold').encode( 
-                            text=alt.Text("百分比", format=".1f%"), 
-                            order=alt.Order("百分比", sort="descending"),
-                            color=alt.value("white") 
-                        )
-
-                        pie_chart = (pie + text_pie).properties(
-                            title='教師年資分佈'
-                        ).configure_view(
-                            strokeWidth=0 
-                        ).interactive()
-                        
-                        st.altair_chart(pie_chart, use_container_width=True)
-                        
                         st.divider()
                         display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
 
