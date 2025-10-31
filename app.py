@@ -598,6 +598,7 @@ if school_df is not None and article_df is not None:
         
         
         # 主分類 6: 辦學理念 (更新欄位列表, 移除被移動的)
+        # 注意：法團校董會_校管會_校董會 已被移到基本資料
         philosophy_display_cols = ["辦學宗旨", "學校管理架構", "環保政策", "學校特色_其他", "校風", "學校發展計劃"]
         
         # 主分類 2: 學業評估與校園生活 (新增欄位列表)
@@ -976,7 +977,7 @@ if school_df is not None and article_df is not None:
                         
                         # --- [END] TABS 結構 ---
 
-                # 5. 「回到最頂」按鈕
+                # 5. 「回到最頂」按鈕 (在結果區塊的最下方)
                 st.divider()
                 if st.button("⬆️ 回到最頂", use_container_width=True):
                     # 使用 st.rerun 模擬回到頂部的效果
