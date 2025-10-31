@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import altair as alt # <-- [新增] 引入 Altair 用於繪製圖表
+import altair as alt # <-- 繪圖函式庫
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
@@ -164,6 +164,18 @@ def load_data():
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
+        # === 🐛 解決方案：新增教師人數欄位轉換邏輯 START ===
+        teacher_count_cols = ["核准編制教師職位數目", "教師總人數"]
+        for col in teacher_count_cols:
+            if col in school_df.columns:
+                # 1. 移除數字以外的雜項字符 (保留數字和小數點)
+                cleaned_series = school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True)
+                # 2. 強制轉換為數字型態，無法轉換的設為 NaN
+                school_df[col] = pd.to_numeric(cleaned_series, errors='coerce')
+                # 3. 填補 NaN 為 0，並轉換為整數
+                school_df[col] = school_df[col].fillna(0).astype(int)
+        # === 解決方案：新增教師人數欄位轉換邏輯 END ===
+        
         assessment_cols = ["全年全科測驗次數_一年級", "全年全科考試次數_一年級", "全年全科測驗次數_二至六年級", "全年全科考試次數_二至六年級"]
         for col in assessment_cols:
             if col in school_df.columns:
@@ -188,7 +200,7 @@ def load_data():
         return None, None
 
 # --- [START] 輔助函數 ---
-# ... (LABEL_MAP, is_valid_data, display_assessment_count, style_filter_button, display_info 保持不變)
+# 這裡修改 LABEL_MAP 以移除百分比符號，滿足圖表類別標籤的要求
 LABEL_MAP = { 
     "校監_校管會主席姓名": "校監", 
     "校長姓名": "校長",
@@ -199,13 +211,13 @@ LABEL_MAP = {
     "午膳結束時間": "午膳結束時間",
     "上學年核准編制教師職位數目": "核准編制教師職位數目",
     "上學年教師總人數": "教師總人數",
-    "已接受師資培訓人數百分率": "已接受師資培訓(%)", 
-    "學士人數百分率": "學士學位(%)",
-    "碩士／博士或以上人數百分率": "碩士/博士學位(%)",
-    "特殊教育培訓人數百分率": "特殊教育培訓(%)",
-    "0至4年年資人數百分率": "0-4年年資(%)", 
-    "5至9年年資人數百分率": "5-9年年資(%)", 
-    "10年年資或以上人數百分率": "10+年年資(%)", 
+    "已接受師資培訓人數百分率": "已接受師資培訓", 
+    "學士人數百分率": "學士學位",
+    "碩士／博士或以上人數百分率": "碩士/博士學位",
+    "特殊教育培訓人數百分率": "特殊教育培訓",
+    "0至4年年資人數百分率": "0-4年年資", 
+    "5至9年年資人數百分率": "5-9年年資", 
+    "10年年資或以上人數百分率": "10+年年資", 
     "課室數目": "課室",
     "禮堂數目": "禮堂",
     "操場數目": "操場",
@@ -273,11 +285,15 @@ def display_info(label, value, is_fee=False):
 
     if is_valid_data(value):
         val_str = str(value)
+        # 檢查是否為百分比欄位 (通過檢查原始 key 是否包含 "百分率")
+        is_percentage_field = '百分率' in label 
+        
         if "網頁" in label and "http" in val_str:
             st.markdown(f"**{display_label}：** [{value}]({value})")
             return 
-        elif "(%)" in display_label and isinstance(value, (int, float)):
-            display_value = f"{int(value)}%"
+        elif is_percentage_field and isinstance(value, (int, float)):
+            # 文本顯示中不帶 %, 僅數字 (例如 98.5)
+            display_value = f"{value:.1f}"
         elif is_fee:
             if isinstance(value, (int, float)) and value > 0:
                 display_value = f"${int(value)}"
@@ -296,7 +312,11 @@ def display_info(label, value, is_fee=False):
             except:
                 display_value = val_str
         else:
-            display_value = val_str
+            # 處理教師人數這類普通數字 (已在 load_data 中轉換為 int/float)
+            if label in ["上學年核准編制教師職位數目", "上學年教師總人數"] and isinstance(value, (int, float)):
+                display_value = str(int(value))
+            else:
+                display_value = val_str
     
     elif is_fee:
         if label in ["學費", "堂費", "家長教師會費"]:
@@ -778,6 +798,7 @@ if school_df is not None and article_df is not None:
                         qual_df = pd.DataFrame(qual_data)
                         
                         # 2. 繪製條形圖 (Bar Chart)
+                        # 這裡沒有加上數字顯示的優化，只是沿用舊的圖表代碼，以防止新的優化邏輯再次導致數據讀取問題。
                         bar_chart = alt.Chart(qual_df).mark_bar(color='#1abc9c').encode(
                             x=alt.X('百分比', title='百分比 (%)', axis=alt.Axis(format='~s')),
                             y=alt.Y('類別', title=None, sort='-x'), # 依百分比降序排序
@@ -805,6 +826,7 @@ if school_df is not None and article_df is not None:
                         seniority_df = pd.DataFrame(seniority_data)
                         
                         # 4. 繪製圓形圖 (Pie Chart)
+                        # 這裡沒有加上數字顯示的優化，只是沿用舊的圖表代碼，以防止新的優化邏輯再次導致數據讀取問題。
                         pie_chart = alt.Chart(seniority_df).mark_arc(outerRadius=120, innerRadius=50).encode(
                             theta=alt.Theta(field="百分比", type="quantitative"),
                             color=alt.Color(field="年資", title="年資類別"),
@@ -822,18 +844,22 @@ if school_df is not None and article_df is not None:
                         display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
 
 
-                    # --- TAB 4: 學校設施 (保持不變) ---
+                    # --- TAB 4: 學校設施 (已簡化並移除標題與分隔線) ---
                     with tabs[3]:
-                        st.subheader("設施數量")
-                        c1, c2, c3, c4 = st.columns(4)
-                        with c1: display_info("課室數目", row.get("課室數目"))
-                        with c2: display_info("禮堂數目", row.get("禮堂數目"))
-                        with c3: display_info("操場數目", row.get("操場數目"))
-                        with c4: display_info("圖書館數目", row.get("圖書館數目"))
+                        # 1. 顯示數量統計 (直接顯示，無標題)
+                        col_count1, col_count2 = st.columns(2)
+                        with col_count1:
+                            display_info("課室數目", row.get("課室數目"))
+                            display_info("操場數目", row.get("操場數目"))
+                        with col_count2:
+                            display_info("禮堂數目", row.get("禮堂數目"))
+                            display_info("圖書館數目", row.get("圖書館數目"))
                         
-                        st.divider()
-                        st.subheader("設施詳情")
-                        for col in facility_cols_text:
+                        # 2. 顯示詳情 (直接顯示，無標題和分隔線)
+                        facility_cols_text_new = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
+                        
+                        for col in facility_cols_text_new:
+                            # 使用 display_info 確保格式統一
                             display_info(col, row.get(col))
 
                     # --- TAB 5: 班級結構 ---
