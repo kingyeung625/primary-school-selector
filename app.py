@@ -94,7 +94,7 @@ st.markdown("""
     button[data-testid="stSidebarCloseButton"]:hover {
         color: #3498db !important; /* 懸停時變為藍色 */
     }
-    /* 新增：統一表格樣式，將數據欄置中 */
+    /* 新增：統一 info-table 樣式 */
     .info-table {
         width: 100%;
         border-collapse: collapse;
@@ -105,15 +105,17 @@ st.markdown("""
         font-weight: 600;
         border-bottom: 2px solid #ccc;
         padding: 8px 12px;
-        text-align: left; /* 保持左對齊 */
+        text-align: left;
+        width: 50%; /* 確保兩欄平均分配 */
     }
     .info-table td {
         padding: 6px 12px;
         border-bottom: 1px solid #eee;
         text-align: left;
+        width: 50%;
     }
     .info-table td:nth-child(2) {
-        text-align: center; /* 讓數字置中 */
+        text-align: right; /* 數字靠右顯示 */
         font-weight: bold;
     }
     </style>
@@ -828,7 +830,6 @@ if school_df is not None and article_df is not None:
                             value = row.get(col_name, 0)
                             # 格式化為 X.X%
                             display_value = f"{value:.1f}％"
-                            # Note: The HTML must be generated inline with minimal Python indentation
                             qual_rows_html += f"""
 <tr>
     <td>{display_label}</td>
