@@ -245,6 +245,7 @@ school_df, article_df = load_data()
 # --- 主應用程式 ---
 if school_df is not None and article_df is not None:
 
+    # --- [START] 修正: col_map 必須包含所有需要查詢的欄位 ---
     col_map = {
         "g1_tests": "全年全科測驗次數_一年級", "g1_exams": "全年全科考試次數_一年級",
         "g1_diverse_assessment": "小一上學期以多元化的進展性評估代替測驗及考試",
@@ -253,10 +254,11 @@ if school_df is not None and article_df is not None:
         "no_test_after_holiday": "避免緊接在長假期後安排測考_讓學生在假期有充分的休息",
         "policy_on_web": "將校本課業政策上載至學校網頁_讓公眾及持份者知悉",
         "homework_policy": "制定適切的校本課業政策_讓家長了解相關安排_並定期蒐集教師_學生和家長的意見",
-        "diverse_learning_assessment": "多元學習評估",
-        "班級教學模式": "班級教學模式",
-        "分班安排": "分班安排"
+        "diverse_learning_assessment": "多元學習評估", # <-- ADDED
+        "班級教學模式": "班級教學模式", # <-- ADDED
+        "分班安排": "分班安排"          # <-- ADDED
     }
+    # --- [END] 修正 ---
 
     if not st.session_state.search_mode:
         
@@ -401,7 +403,7 @@ if school_df is not None and article_df is not None:
                 "homework_policy": "制定校本課業政策",
                 "班級教學模式": "班級教學模式",
                 "分班安排": "分班安排",
-                "diverse_learning_assessment": "多元學習評估"
+                "diverse_learning_assessment": "多元學習評估" # 這裡的 key 必須是程式內部使用的，不是 display value
             }
             
             for index, row in filtered_schools.iterrows():
@@ -550,18 +552,18 @@ if school_df is not None and article_df is not None:
                         # 政策與教學模式 (2欄佈局)
                         c_policy1, c_policy2 = st.columns(2)
                         
-                        # Column 1 items
+                        # Column 1 items (修正後的調用方式)
                         with c_policy1:
                             display_info(assessment_display_map["g1_diverse_assessment"], row.get(col_map["g1_diverse_assessment"]))
                             display_info(assessment_display_map["tutorial_session"], row.get(col_map["tutorial_session"]))
                             display_info(assessment_display_map["homework_policy"], row.get(col_map["homework_policy"]))
                             display_info(assessment_display_map["no_test_after_holiday"], row.get(col_map["no_test_after_holiday"]))
                             
-                        # Column 2 items
+                        # Column 2 items (修正後的調用方式)
                         with c_policy2:
                             display_info(assessment_display_map["分班安排"], row.get(col_map["分班安排"]))
                             display_info(assessment_display_map["班級教學模式"], row.get(col_map["班級教學模式"]))
-                            display_info(assessment_display_map["多元學習評估"], row.get(col_map["diverse_learning_assessment"]))
+                            display_info(assessment_display_map["diverse_learning_assessment"], row.get(col_map["diverse_learning_assessment"])) # <-- 修正 Key
                             display_info(assessment_display_map["policy_on_web"], row.get(col_map["policy_on_web"]))
                             
                     # --- TAB 3: 師資概況 ---
