@@ -643,7 +643,7 @@ if school_df is not None and article_df is not None:
 
                     tabs = st.tabs(tab_list)
 
-                    # --- TAB 1: 基本資料 (已優化：上學時間移至此處) ---
+                    # --- TAB 1: 基本資料 (已優化：時間信息移入主體並刪除冗餘) ---
                     with tabs[0]:
                         st.subheader("學校基本資料")
                         # 佈局基於 DOCX 格式
@@ -686,6 +686,9 @@ if school_df is not None and article_df is not None:
                                     display_info("直屬中學", related_feeder_val)
                                 if has_linked:
                                     display_info("聯繫中學", related_linked_val)
+                        
+                        st.divider()
+                        st.subheader("校長及家教會資訊")
 
                         c11, c12 = st.columns(2)
                         with c11:
@@ -704,31 +707,24 @@ if school_df is not None and article_df is not None:
                         with c14: display_info("舊生會_校友會", row.get("舊生會_校友會"))
 
                         st.divider()
-                        st.subheader("上學及放學安排")
+                        st.subheader("上學、午膳及交通安排")
                         
-                        c_transport1, c_transport2 = st.columns(2)
-                        with c_transport1:
+                        # 整合後的上學及午膳資訊 (移除 '上課時間_', '放學時間', '午膳時間')
+                        c_time_lunch1, c_time_lunch2 = st.columns(2)
+                        with c_time_lunch1:
+                            # 校車/保姆車
                             has_bus, has_van = row.get("校車") == "有", row.get("保姆車") == "有"
                             transport_status = "沒有"
                             if has_bus and has_van: transport_status = "有校車及保姆車"
                             elif has_bus: transport_status = "有校車"
                             elif has_van: transport_status = "有保姆車"
                             display_info("校車或保姆車", transport_status)
-                        
-                        c15, c16 = st.columns(2)
-                        # 修正: 這裡應該調用 "上課時間_" 的數據，但使用 "一般上學時間" 標籤
-                        with c15: display_info("上課時間_", row.get("上課時間_")) 
-                        with c16: display_info("放學時間", row.get("放學時間"))
-
-                        st.divider()
-                        st.subheader("午膳安排")
-                        
-                        c_lunch1, c_lunch2 = st.columns(2)
-                        with c_lunch1: display_info("午膳安排", row.get("午膳安排"))
-                        
-                        c17, c18 = st.columns(2)
-                        with c17: display_info("午膳時間", row.get("午膳時間"))
-                        with c18: display_info("午膳結束時間", row.get("午膳結束時間"))
+                            
+                            display_info("午膳安排", row.get("午膳安排"))
+                            
+                        with c_time_lunch2:
+                            # 僅保留午膳結束時間
+                            display_info("午膳結束時間", row.get("午膳結束時間"))
 
                         st.divider()
                         st.subheader("費用")
@@ -831,7 +827,6 @@ if school_df is not None and article_df is not None:
                             value = row.get(col_name, 0)
                             # 格式化為 X.X%
                             display_value = f"{value:.1f}％"
-                            # 修正 HTML 縮排錯誤
                             qual_rows_html += f"""<tr><td>{display_label}</td><td>{display_value}</td></tr>"""
                         
                         # --- 2. SENIORITY DATA GENERATION ---
