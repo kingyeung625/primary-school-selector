@@ -13,8 +13,8 @@ if 'search_mode' not in st.session_state:
     st.session_state.search_mode = False 
 if 'filtered_schools' not in st.session_state:
     st.session_state.filtered_schools = pd.DataFrame()
-
-# 初始化按鈕狀態 for Highlighting
+    
+# 初始化篩選器按鈕狀態 (Filter buttons)
 if 'master_filter' not in st.session_state:
     st.session_state.master_filter = 0
 if 'exp_filter' not in st.session_state:
@@ -22,11 +22,16 @@ if 'exp_filter' not in st.session_state:
 if 'sen_filter' not in st.session_state:
     st.session_state.sen_filter = 0
 
+# 初始化學校詳細資訊按鈕狀態 (Detail buttons)
+DEFAULT_DETAIL_VIEW = "基本資料"
+if 'detail_view' not in st.session_state:
+    st.session_state.detail_view = DEFAULT_DETAIL_VIEW
+
 # --- 載入與處理資料 ---
 @st.cache_data
 def load_data():
     try:
-        # 使用您最新的檔案名稱
+        # 修正檔案名稱: 使用您最新的檔案名稱
         school_df = pd.read_csv("database_school_info.csv") 
         article_df = pd.read_csv("database_related_article.csv")
         
@@ -39,6 +44,7 @@ def load_data():
         time_cols_to_clean = ["上課時間_", "放學時間", "午膳時間", "午膳結束時間"]
         for col in time_cols_to_clean:
             if col in school_df.columns:
+                # 強制轉為 string 並移除前後空格
                 school_df[col] = school_df[col].astype(str).str.strip()
 
         for col in school_df.select_dtypes(include=['object']).columns:
@@ -87,7 +93,7 @@ def load_data():
         st.error(f"處理資料時發生錯誤：{e}。請檢查您的 CSV 檔案格式是否正確。")
         return None, None
 
-# --- 輔助函數 ---
+# --- [START] 輔助函數 ---
 LABEL_MAP = { 
     "校監_校管會主席姓名": "校監", 
     "校長姓名": "校長",
@@ -122,27 +128,35 @@ LABEL_MAP = {
 def is_valid_data(value):
     return pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']
 
-# 格式化按鈕的高亮樣式
-def style_button(label, value, filter_key):
+# 格式化篩選器按鈕的高亮樣式
+def style_filter_button(label, value, filter_key):
     is_selected = st.session_state[filter_key] == value
     style = """
         <style>
+        /* This ensures the CSS is applied to all buttons in the section */
         div.stButton > button {
-            background-color: %s;
-            color: %s;
+            background-color: transparent;
+            color: #1abc9c;
             border-radius: 5px;
             border: 1px solid #1abc9c;
             padding: 5px 10px;
             margin: 2px;
             transition: all 0.2s ease;
-            width: 100%%;
+            width: 100%;
+        }
+        /* Specific style for the highlighted button */
+        div.stButton button[data-testid="stButton-primary"] {
+             background-color: #1abc9c;
+             color: #FFFFFF;
         }
         </style>
-        """ % ('#1abc9c' if is_selected else 'transparent', '#FFFFFF' if is_selected else '#1abc9c')
-    
+        """
     st.markdown(style, unsafe_allow_html=True)
     
-    if st.button(label, key=f"btn_{filter_key}_{value}"):
+    # 設置按鈕類型以應用高亮樣式
+    button_type = "primary" if is_selected else "secondary"
+    
+    if st.button(label, type=button_type, key=f"btn_{filter_key}_{value}"):
         # 如果點擊的按鈕已經被選中，則取消選擇
         if is_selected:
             st.session_state[filter_key] = 0
@@ -150,7 +164,18 @@ def style_button(label, value, filter_key):
             st.session_state[filter_key] = value
         st.rerun()
 
-# 更新 display_info 函數以始終顯示標籤
+# 格式化詳細資料頁面切換按鈕的高亮樣式
+def style_detail_button(label, current_view):
+    is_selected = st.session_state.detail_view == label
+    button_type = "primary" if is_selected else "secondary"
+    
+    # 使用 st.columns 來實現按鈕在響應式介面中的換行佈局
+    # 注意：這裡的 CSS 覆蓋在頂部已經定義，但我們需要確保按鈕的行為和外觀一致
+    
+    if st.button(label, type=button_type, key=f"detail_btn_{label}"):
+        st.session_state.detail_view = label
+        st.rerun()
+
 def display_info(label, value, is_fee=False):
     display_label = LABEL_MAP.get(label, label)
     display_value = "沒有" # 預設值
@@ -256,21 +281,21 @@ if school_df is not None and article_df is not None:
             
             st.markdown("**碩士/博士或以上學歷 (%)**")
             col_master1, col_master2, col_master3 = st.columns(3)
-            with col_master1: style_button("最少 5%", 5, 'master_filter')
-            with col_master2: style_button("最少 15%", 15, 'master_filter')
-            with col_master3: style_button("最少 25%", 25, 'master_filter')
+            with col_master1: style_filter_button("最少 5%", 5, 'master_filter')
+            with col_master2: style_filter_button("最少 15%", 15, 'master_filter')
+            with col_master3: style_filter_button("最少 25%", 25, 'master_filter')
 
             st.markdown("**10年或以上年資 (%)**")
             col_exp1, col_exp2, col_exp3 = st.columns(3)
-            with col_exp1: style_button("最少 20%", 20, 'exp_filter')
-            with col_exp2: style_button("最少 40%", 40, 'exp_filter')
-            with col_exp3: style_button("最少 60%", 60, 'exp_filter')
+            with col_exp1: style_filter_button("最少 20%", 20, 'exp_filter')
+            with col_exp2: style_filter_button("最少 40%", 40, 'exp_filter')
+            with col_exp3: style_filter_button("最少 60%", 60, 'exp_filter')
             
             st.markdown("**特殊教育培訓 (%)**")
             col_sen1, col_sen2, col_sen3 = st.columns(3)
-            with col_sen1: style_button("最少 10%", 10, 'sen_filter')
-            with col_sen2: style_button("最少 20%", 20, 'sen_filter')
-            with col_sen3: style_button("最少 30%", 30, 'sen_filter')
+            with col_sen1: style_filter_button("最少 10%", 10, 'sen_filter')
+            with col_sen2: style_filter_button("最少 20%", 20, 'sen_filter')
+            with col_sen3: style_filter_button("最少 30%", 30, 'sen_filter')
         # --- [END] 師資按鈕篩選 UI ---
 
         st.write("") 
@@ -309,20 +334,20 @@ if school_df is not None and article_df is not None:
             if use_diverse_assessment: mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
             if has_tutorial_session: mask &= (school_df[col_map["tutorial_session"]] == "有")
             
-            # --- [START] 師資按鈕篩選邏輯 ---
+            # 師資按鈕篩選邏輯
             if st.session_state.master_filter > 0:
                 mask &= (school_df["碩士_博士或以上人數百分率"] >= st.session_state.master_filter)
             if st.session_state.exp_filter > 0:
                 mask &= (school_df["10年年資或以上人數百分率"] >= st.session_state.exp_filter)
             if st.session_state.sen_filter > 0:
                 mask &= (school_df["特殊教育培訓人數百分率"] >= st.session_state.sen_filter)
-            # --- [END] 師資按鈕篩選邏輯 ---
 
             st.session_state.filtered_schools = school_df[mask]
             st.rerun()
 
     else:
         if st.button("✏️ 返回並修改篩選條件"):
+            # 在返回篩選頁時，不清除篩選按鈕狀態
             st.session_state.search_mode = False
             st.rerun()
 
@@ -333,7 +358,7 @@ if school_df is not None and article_df is not None:
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            # 欄位定義 (略)
+            # 欄位定義 (保持不變)
             fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
             teacher_stat_cols = [
                 "上學年已接受師資培训人數百分率", "上學年學士人數百分率", "上學年碩士_博士或以上人數百分率", 
@@ -359,6 +384,12 @@ if school_df is not None and article_df is not None:
                 "分班安排": "分班安排"
             }
             
+            # --- 學校詳細資料頁面的分類列表 (用於按鈕) ---
+            DETAIL_VIEWS = [
+                "基本資料", "學業評估與安排", "師資概況", "學校設施", 
+                "班級結構", "辦學理念與補充資料", "聯絡資料"
+            ]
+
             for index, row in filtered_schools.iterrows():
                 with st.expander(f"**{row['學校名稱']}**"):
                     
@@ -371,18 +402,44 @@ if school_df is not None and article_df is not None:
                                     with st.container(border=True):
                                         st.markdown(f"[{title}]({link})")
 
-                    tab_list = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構"]
+                    # --- [START] 按鈕切換區 ---
                     
-                    has_mission_data = any(is_valid_data(row.get(col)) for col in other_categories["辦學理念"])
-                    if has_mission_data:
-                        tab_list.append("辦學理念與補充資料")
-
-                    tab_list.append("聯絡資料")
+                    # 重新初始化 detail_view 狀態，以防 expander 關閉後狀態丟失
+                    if 'detail_view_per_school' not in st.session_state:
+                         st.session_state.detail_view_per_school = {}
                     
-                    tabs = st.tabs(tab_list)
+                    school_key = row['學校名稱'] + str(index)
+                    if school_key not in st.session_state.detail_view_per_school:
+                        st.session_state.detail_view_per_school[school_key] = DEFAULT_DETAIL_VIEW
+                        
+                    current_detail_view = st.session_state.detail_view_per_school[school_key]
+                    
+                    # 佈局按鈕，讓它們能自動換行
+                    cols = st.columns(len(DETAIL_VIEWS))
+                    
+                    for i, view in enumerate(DETAIL_VIEWS):
+                        with cols[i]:
+                            # 檢查該類別是否應被啟用 (例如，沒有辦學理念時)
+                            if view == "辦學理念與補充資料" and not has_mission_data:
+                                continue
+                                
+                            is_selected = current_detail_view == view
+                            button_type = "primary" if is_selected else "secondary"
+                            
+                            if st.button(view, type=button_type, key=f"{school_key}_detail_btn_{view}"):
+                                st.session_state.detail_view_per_school[school_key] = view
+                                st.rerun()
 
-                    # --- [START] TAB 1: 基本資料 ---
-                    with tabs[0]:
+                    # --- [END] 按鈕切換區 ---
+                    
+                    st.divider()
+
+                    # --- 顯示內容區 ---
+                    
+                    view = current_detail_view
+
+                    # --- VIEW 1: 基本資料 ---
+                    if view == "基本資料":
                         st.subheader("學校基本資料")
                         c1, c2 = st.columns(2)
                         with c1: display_info("區域", row.get("區域"))
@@ -470,10 +527,9 @@ if school_df is not None and article_df is not None:
                         
                         for col_key in fee_cols:
                             display_info(col_key, row.get(col_key), is_fee=True)
-                    # --- [END] TAB 1 ---
-
-                    # --- TAB 2: 學業評估與安排 ---
-                    with tabs[1]:
+                        
+                    # --- VIEW 2: 學業評估與安排 ---
+                    elif view == "學業評估與安排":
                         st.subheader("學業評估與安排")
                         c1, c2, c3 = st.columns(3)
                         with c1:
@@ -491,8 +547,8 @@ if school_df is not None and article_df is not None:
                             if label not in ["一年級測驗次數", "一年級考試次數", "二至六年級測驗次數", "二至六年級考試次數", "小一上學期多元化評估", "下午設導修課"]:
                                 display_info(label, row.get(col_name))
 
-                    # --- TAB 3: 師資概況 ---
-                    with tabs[2]:
+                    # --- VIEW 3: 師資概況 ---
+                    elif view == "師資概況":
                         st.subheader("師資概況")
                         sub_cols = st.columns(3)
                         stat_cols_to_display = [col for col in teacher_stat_cols if col != "教師專業培訓及發展"]
@@ -503,8 +559,8 @@ if school_df is not None and article_df is not None:
                         st.divider()
                         display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
 
-                    # --- TAB 4: 學校設施 ---
-                    with tabs[3]:
+                    # --- VIEW 4: 學校設施 ---
+                    elif view == "學校設施":
                         st.subheader("設施數量")
                         c1, c2, c3, c4 = st.columns(4)
                         with c1: display_info("課室數目", row.get("課室數目"))
@@ -517,8 +573,8 @@ if school_df is not None and article_df is not None:
                         for col in facility_cols_text:
                             display_info(col, row.get(col))
 
-                    # --- TAB 5: 班級結構 ---
-                    with tabs[4]:
+                    # --- VIEW 5: 班級結構 ---
+                    elif view == "班級結構":
                         st.subheader("班級結構")
                         grades_display = ["小一", "小二", "小三", "小四", "小五", "小六", "總數"]
                         grades_internal = ["小一", "小二", "小三", "小四", "小五", "小六", "總"]
@@ -527,10 +583,9 @@ if school_df is not None and article_df is not None:
                         class_df = pd.DataFrame([last_year_data, this_year_data], columns=grades_display, index=["上學年班數", "本學年班數"])
                         st.table(class_df)
 
-                    # --- 動態 TABS ---
-                    tab_index = 5
-                    if has_mission_data:
-                        with tabs[tab_index]:
+                    # --- VIEW 6: 辦學理念與補充資料 ---
+                    elif view == "辦學理念與補充資料":
+                        if has_mission_data:
                             st.subheader("辦學理念")
                             for col in other_categories["辦學理念"]:
                                 display_info(col, row.get(col))
@@ -538,6 +593,7 @@ if school_df is not None and article_df is not None:
                             st.divider()
                             st.subheader("其他補充資料")
                             
+                            # 建立排除列表 (已顯示的欄位)
                             displayed_cols = set(fee_cols + teacher_stat_cols + list(other_categories["辦學理念"]) + facility_cols_counts + facility_cols_text + list(assessment_display_map.values()) + ["區域", "小一學校網", "資助類型", "學生性別", "創校年份", "宗教", "教學語言", "校車", "保姆車", "辦學團體", "校訓", "校長姓名", "校長稱謂", "校監_校管會主席姓名", "校監_校管會主席稱謂", "家長教師會", "舊生會_校友會", "一條龍中學", "直屬中學", "聯繫中學", "上課時間", "上課時間_", "放學時間", "午膳安排", "午膳時間", "午膳結束時間", "學校名稱", "學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址", "學校佔地面積"])
                             for i in range(1, 7):
                                 displayed_cols.add(f"上學年小{i}班數")
@@ -554,9 +610,11 @@ if school_df is not None and article_df is not None:
                                         other_cols_exist = True
                             if not other_cols_exist:
                                 st.info("沒有其他補充資料可顯示。")
-                        tab_index += 1
-                    
-                    with tabs[tab_index]:
+                        else:
+                            st.info("沒有辦學理念及補充資料可顯示。")
+
+                    # --- VIEW 7: 聯絡資料 ---
+                    elif view == "聯絡資料":
                         st.subheader("聯絡資料")
                         c1, c2 = st.columns(2)
                         with c1:
@@ -567,4 +625,4 @@ if school_df is not None and article_df is not None:
                             display_info("電郵", row.get("學校電郵"))
                         display_info("網頁", row.get("學校網址"))
                     
-                    # --- [END] TABS 結構 ---
+                    # --- END 內容區 ---
