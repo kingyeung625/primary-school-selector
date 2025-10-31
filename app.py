@@ -173,7 +173,6 @@ st.markdown(f"""
     """, unsafe_allow_html=True)
 
 # --- 初始化 Session State ---
-# 移除 'search_mode'
 if 'filtered_schools' not in st.session_state:
     st.session_state.filtered_schools = pd.DataFrame()
 
@@ -250,11 +249,21 @@ LABEL_MAP = {
     "一條龍中學": "一條龍中學",
     "直屬中學": "直屬中學",
     "聯繫中學": "聯繫中學",
-    "校訓": "校訓" 
+    "校訓": "校訓",
+    # 新增/移動的欄位名稱
+    "健康校園生活": "健康校園生活",
+    "學校生活備註": "學校生活備註",
+    "全方位學習": "全方位學習",
+    "家校合作": "家校合作",
+    "全校參與照顧學生的多樣性": "全校參與照顧學生的多樣性",
+    "全校參與模式融合教育": "全校參與模式融合教育",
+    "非華語學生的教育支援": "非華語學生的教育支援",
+    "學費減免": "學費減免"
 }
 
 def is_valid_data(value):
     # 🚨 修正：在進行任何字串操作前，強制將值轉換為字串。
+    # 這可以避免 'float' object has no attribute 'strip' 錯誤，因為 numpy.nan 是 float 類型。
     value_str = str(value).strip() 
     
     # 檢查是否為非空字串，且不是字串 'nan' 或 '-'
@@ -401,7 +410,8 @@ def render_sidebar_filters(df):
         "關聯學校類型 (一條龍/直屬/聯繫)", 
         ["一條龍中學", "直屬中學", "聯繫中學"], 
         default=st.session_state.get("related", []),
-        key="related"
+        key="related" 
+        # 注意：此處篩選邏輯不變，仍使用 'related' key
     )
 
     # 8. 校車服務 (key="transport")
@@ -427,12 +437,29 @@ if school_df is not None and article_df is not None:
         "g2_6_tests": "全年全科測驗次數_二至六年級", "g2_6_exams": "全年全科考試次數_二至六年級",
         "tutorial_session": "按校情靈活編排時間表_盡量在下午安排導修時段_讓學生能在教師指導下完成部分家課",
         "no_test_after_holiday": "避免緊接在長假期後安排測考_讓學生在假期有充分的休息",
-        "policy_on_web": "將校本課業政策上載至學校網頁_讓公眾及持份者知悉",
-        "homework_policy": "制定適切的校本課業政策_讓家長了解相關安排_並定期蒐集教師_學生和家長的意見",
         "diverse_learning_assessment": "多元學習評估",
         "班級教學模式": "班級教學模式", 
         "分班安排": "分班安排"          
     }
+    
+    # --- 新增/移動的欄位列表 ---
+    
+    # 新增的副分類群組
+    collaboration_and_life_cols = ["家校合作", "健康校園生活", "全方位學習", "學校生活備註"]
+    student_support_cols = ["全校參與照顧學生的多樣性", "全校參與模式融合教育", "非華語學生的教育支援"]
+    
+    # 課程發展與策略 (新列表，供顯示用)
+    curriculum_cols = ["學校關注事項", "學習和教學策略", "小學教育課程更新重點的發展", "共通能力的培養", "正確價值觀_態度和行為的培養", "課程剪裁及調適措施"]
+
+
+    # 辦學理念分頁的欄位 (移除被移動的欄位)
+    philosophy_cols = ["辦學宗旨", "學校管理架構", "法團校董會_校管會_校董會", "環保政策", "學校特色_其他", "校風", "學校發展計劃"]
+    
+    other_categories = {
+        "辦學理念": philosophy_cols,
+        # 移除 '協作與活動' 和 '學生支援'
+    }
+
 
     # 呼叫側邊欄篩選器
     render_sidebar_filters(school_df) 
@@ -446,8 +473,6 @@ if school_df is not None and article_df is not None:
     with st.expander("根據課業安排篩選"):
         assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
         
-        # 🚨 警告：此處篩選仍使用數字比較邏輯，但由於資料已轉為純文字，這可能不再準確。
-        # 如果您需要準確的數值篩選，必須在載入階段重新引入數字轉換。
         c1, c2, c3, c4 = st.columns(4)
         with c1:
             selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options, key="g1_tests")
@@ -568,35 +593,36 @@ if school_df is not None and article_df is not None:
                 st.warning("找不到符合所有篩選條件的學校。")
             else:
                 # 欄位定義 (保持名稱不變)
-                fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
+                fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用", "學費減免"]
                 teacher_stat_cols = [
                     "已接受師資培訓人數百分率", "學士人數百分率", "碩士／博士或以上人數百分率", 
                     "特殊教育培訓人數百分率", "0至4年年資人數百分率", "5至9年年資人數百分率", 
                     "10年年資或以上人數百分率", "核准編制教師職位數目", "教師總人數", 
                     "教師專業培訓及發展"
                 ]
-                other_categories = {
-                    "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色", "校訓"], 
-                }
+                
                 facility_cols_counts = ["課室數目", "禮堂數目", "操場數目", "圖書館數目"]
                 facility_cols_text = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
-                assessment_display_map = {
-                    "g1_diverse_assessment": "小一上學期多元化評估",
-                    "tutorial_session": "下午設導修課",
-                    "no_test_after_holiday": "避免長假期後測考",
-                    "policy_on_web": "網上校本課業政策",
-                    "homework_policy": "制定校本課業政策",
-                    "班級教學模式": "班級教學模式", 
-                    "分班安排": "分班安排",
-                    "diverse_learning_assessment": "多元學習評估" 
-                }
+                
+                
+                # --- 新的內容群組 ---
+                
+                # 主分類 6: 辦學理念 (更新欄位列表, 移除被移動的)
+                philosophy_display_cols = ["辦學宗旨", "學校管理架構", "法團校董會_校管會_校董會", "環保政策", "學校特色_其他", "校風", "學校發展計劃"]
+                
+                # 主分類 2: 學業評估與校園生活 (新增欄位列表)
+                curriculum_cols = ["學校關注事項", "學習和教學策略", "小學教育課程更新重點的發展", "共通能力的培養", "正確價值觀_態度和行為的培養", "課程剪裁及調適措施"]
+                collaboration_and_life_cols = ["家校合作", "健康校園生活", "全方位學習", "學校生活備註"]
+                student_support_cols = ["全校參與照顧學生的多樣性", "全校參與模式融合教育", "非華語學生的教育支援"]
+                
+                all_philosophy_cols = ["校訓"] + philosophy_display_cols
+                has_mission_data = any(is_valid_data(row.get(col)) for col in all_philosophy_cols)
+                
                 
                 for index, row in filtered_schools.iterrows():
-                    # 檢查是否有辦學理念數據 (包括校訓)
-                    has_mission_data = any(is_valid_data(row.get(col)) for col in other_categories["辦學理念"])
                     
                     # 建立 tabs 列表
-                    tab_list = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構"]
+                    tab_list = ["基本資料", "學業評估與校園生活", "師資概況", "學校設施", "班級結構"] # 🚨 重命名
                     if has_mission_data:
                         tab_list.append("辦學理念") 
                     tab_list.append("聯絡資料")
@@ -617,105 +643,99 @@ if school_df is not None and article_df is not None:
 
                         # --- TAB 1: 基本資料 ---
                         with tabs[0]:
-                            st.subheader("學校基本資料")
                             
+                            # --- 學校概覽 (新增宗教、教學語言) ---
+                            st.subheader("學校概覽")
                             c1, c2 = st.columns(2)
-                            with c1: display_info("區域", row.get("區域"))
-                            with c2: display_info("小一學校網", row.get("小一學校網"))
+                            with c1: 
+                                display_info("區域", row.get("區域"))
+                                display_info("學校類別1", row.get("資助類型"))
+                                display_info("創校年份", row.get("創校年份"))
+                                display_info("宗教", row.get("宗教")) # NEW
+                                display_info("教學語言", row.get("教學語言")) # NEW
+                            with c2: 
+                                display_info("小一學校網", row.get("小一學校網"))
+                                display_info("學校類別2", row.get("上課時間"))
+                                display_info("學生性別", row.get("學生性別"))
+                                display_info("學校佔地面積", row.get("學校佔地面積"))
                             
-                            c3, c4 = st.columns(2)
-                            with c3: display_info("資助類型", row.get("資助類型"))
-                            with c4: display_info("學生性別", row.get("學生性別"))
-
-                            c5, c6 = st.columns(2)
-                            with c5: display_info("創校年份", row.get("創校年份"))
-                            with c6: display_info("辦學團體", row.get("辦學團體"))
-
-                            c7, c8 = st.columns(2)
-                            with c7: display_info("宗教", row.get("宗教"))
-                            with c8: display_info("學校佔地面積", row.get("學校佔地面積"))
-
-                            c9, c10 = st.columns(2)
-                            with c9: display_info("教學語言", row.get("教學語言"))
-                            
-                            # 關聯學校邏輯 (不變)
-                            with c10: 
-                                related_dragon_val = row.get("一條龍中學")
-                                related_feeder_val = row.get("直屬中學")
-                                related_linked_val = row.get("聯繫中學")
-                                
-                                has_dragon = is_valid_data(related_dragon_val)
-                                has_feeder = is_valid_data(related_feeder_val)
-                                has_linked = is_valid_data(related_linked_val)
-
-                                if not has_dragon and not has_feeder and not has_linked:
-                                    display_info("關聯學校", None)
-                                else:
-                                    st.markdown("**關聯學校：**")
-                                    if has_dragon:
-                                        display_info("一條龍中學", related_dragon_val)
-                                    if has_feeder:
-                                        display_info("直屬中學", related_feeder_val)
-                                    if has_linked:
-                                        display_info("聯繫中學", related_linked_val)
-                            
+                            # --- 校長與組織 ---
                             st.divider()
-                            st.subheader("校長及家教會資訊")
-
+                            st.subheader("校長與組織")
                             c11, c12 = st.columns(2)
                             with c11:
                                 principal_name = str(row.get("校長姓名", "")).strip()
                                 principal_title = str(row.get("校長稱謂", "")).strip()
                                 principal_display = f"{principal_name}{principal_title}" if is_valid_data(principal_name) else None
                                 display_info("校長", principal_display)
+                                display_info("辦學團體", row.get("辦學團體"))
+                                display_info("家長教師會", row.get("家長教師會"))
+                                display_info("法團校董會", row.get("法團校董會"))
+                                display_info("校監和校董_校管會主席和成員的培訓達標率", row.get("校監和校董_校管會主席和成員的培訓達標率"))
                             with c12:
                                 supervisor_name = str(row.get("校監_校管會主席姓名", "")).strip()
                                 supervisor_title = str(row.get("校監_校管會主席稱謂", "")).strip()
                                 supervisor_display = f"{supervisor_name}{supervisor_title}" if is_valid_data(supervisor_name) else None
                                 display_info("校監_校管會主席姓名", supervisor_display)
-
-                            c13, c14 = st.columns(2)
-                            with c13: display_info("家長教師會", row.get("家長教師會"))
-                            with c14: display_info("舊生會_校友會", row.get("舊生會_校友會"))
-
-                            st.divider()
-                            st.subheader("上學、午膳及交通安排")
+                                display_info("舊生會_校友會", row.get("舊生會_校友會"))
                             
-                            # 第一排：上學時間 & 放學時間
+                            # --- 關聯學校 (原「關聯與交通」) ---
+                            st.divider()
+                            st.subheader("關聯學校")
+                            related_dragon_val = row.get("一條龍中學")
+                            related_feeder_val = row.get("直屬中學")
+                            related_linked_val = row.get("聯繫中學")
+                            
+                            has_dragon = is_valid_data(related_dragon_val)
+                            has_feeder = is_valid_data(related_feeder_val)
+                            has_linked = is_valid_data(related_linked_val)
+                            
+                            if has_dragon or has_feeder or has_linked:
+                                c_rel1, c_rel2, c_rel3 = st.columns(3)
+                                with c_rel1: display_info("一條龍中學", related_dragon_val)
+                                with c_rel2: display_info("直屬中學", related_feeder_val)
+                                with c_rel3: display_info("聯繫中學", related_linked_val)
+                            else:
+                                st.info("沒有關聯學校資料。")
+
+
+                            # --- 上學、午膳、放學、交通安排 (新增校車、保姆車) ---
+                            st.divider()
+                            st.subheader("上學、午膳、放學、交通安排")
+                            
                             c_time1, c_time2 = st.columns(2)
-                            with c_time1:
-                                display_info("上課時間_", row.get("上課時間_")) 
-                            with c_time2:
-                                display_info("放學時間", row.get("放學時間")) 
+                            with c_time1: display_info("上課時間_", row.get("上課時間_")) 
+                            with c_time2: display_info("放學時間", row.get("放學時間")) 
                             
-                            # 第二排：午膳安排 & 午膳時間
                             c_lunch1, c_lunch2 = st.columns(2)
-                            with c_lunch1:
-                                display_info("午膳安排", row.get("午膳安排"))
-                            with c_lunch2:
-                                display_info("午膳時間", row.get("午膳時間")) 
+                            with c_lunch1: display_info("午膳時間", row.get("午膳時間")) 
+                            with c_lunch2: display_info("午膳結束時間", row.get("午膳結束時間"))
+                            
+                            c_lunch3, c_transport1, c_transport2 = st.columns(3)
+                            with c_lunch3: display_info("午膳安排", row.get("午膳安排"))
+                            
+                            # NEW: 交通安排 (校車, 保姆車)
+                            with c_transport1: display_info("校車", row.get("校車")) 
+                            with c_transport2: display_info("保姆車", row.get("保姆車")) 
 
-                            # 第三排：午膳結束時間 & 交通安排
-                            c_lunch_end, c_transport = st.columns(2)
-                            with c_lunch_end:
-                                display_info("午膳結束時間", row.get("午膳結束時間"))
-                            with c_transport:
-                                # 校車/保姆車
-                                has_bus, has_van = row.get("校車") == "有", row.get("保姆車") == "有"
-                                transport_status = "沒有"
-                                if has_bus and has_van: transport_status = "有校車及保姆車"
-                                elif has_bus: transport_status = "有校車"
-                                elif has_van: transport_status = "有保姆車"
-                                display_info("校車或保姆車", transport_status)
-                                
+
+                            # --- 費用與資助 (新增學費減免) ---
                             st.divider()
-                            st.subheader("費用")
+                            st.subheader("費用與資助")
                             
-                            # 費用將以 CSV 中的原始文字顯示
-                            for col_key in fee_cols:
-                                display_info(col_key, row.get(col_key), is_fee=True)
+                            c_fee1, c_fee2, c_fee3 = st.columns(3)
+                            with c_fee1:
+                                display_info("學費", row.get("學費"), is_fee=True)
+                                display_info("非標準項目的核准收費", row.get("非標準項目的核准收費"), is_fee=True)
+                            with c_fee2:
+                                display_info("堂費", row.get("堂費"), is_fee=True)
+                                display_info("其他收費_費用", row.get("其他收費_費用"), is_fee=True)
+                            with c_fee3:
+                                display_info("家長教師會費", row.get("家長教師會費"), is_fee=True)
+                                display_info("學費減免", row.get("學費減免")) # NEW: 學費減免
                             
-                        # --- TAB 2: 學業評估與安排 (保持不變) ---
+                            
+                        # --- TAB 2: 學業評估與校園生活 (原: 學業評估與安排) ---
                         with tabs[1]:
                             st.subheader("學業評估與安排")
                             
@@ -749,18 +769,16 @@ if school_df is not None and article_df is not None:
                             
                             st.divider()
 
-                            st.markdown("##### 課業及教學政策")
+                            st.markdown("##### 課業及教學模式")
                             
-                            # 政策與教學模式 - HTML List (顯示純文字)
+                            # 政策與教學模式 - HTML List
                             all_policy_data = [
                                 ("g1_diverse_assessment", "小一上學期多元化評估"),
                                 ("tutorial_session", "下午設導修課"),
-                                ("homework_policy", "制定校本課業政策"),
                                 ("no_test_after_holiday", "避免長假期後測考"),
                                 ("分班安排", "分班安排"),
                                 ("班級教學模式", "班級教學模式"),
                                 ("diverse_learning_assessment", "多元學習評估"),
-                                ("policy_on_web", "網上校本課業政策"),
                             ]
                             
                             policy_list_html = ""
@@ -777,6 +795,25 @@ if school_df is not None and article_df is not None:
                                 """
                             
                             st.markdown(policy_list_html, unsafe_allow_html=True)
+                            
+                            # --- 課程發展與策略 ---
+                            st.divider()
+                            st.subheader("課程發展與策略")
+                            for col in curriculum_cols:
+                                display_info(col, row.get(col))
+
+                            # --- 協作與校園生活 (Moved) ---
+                            st.divider()
+                            st.subheader("協作與校園生活")
+                            for col in collaboration_and_life_cols:
+                                display_info(col, row.get(col))
+
+                            # --- 學生支援與關顧 (Moved) ---
+                            st.divider()
+                            st.subheader("學生支援與關顧")
+                            for col in student_support_cols:
+                                display_info(col, row.get(col))
+
                                 
                         # --- TAB 3: 師資概況 ---
                         with tabs[2]:
@@ -840,8 +877,9 @@ if school_df is not None and article_df is not None:
                             display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
 
 
-                        # --- TAB 4: 學校設施 (保持不變) ---
+                        # --- TAB 4: 學校設施 ---
                         with tabs[3]:
+                            st.subheader("設施數量")
                             # 1. 顯示數量統計 (顯示純文字)
                             col_count1, col_count2 = st.columns(2)
                             with col_count1:
@@ -851,8 +889,10 @@ if school_df is not None and article_df is not None:
                                 display_info("禮堂數目", row.get("禮堂數目"))
                                 display_info("圖書館數目", row.get("圖書館數目"))
                             
+                            st.divider()
+                            st.subheader("設施詳情與環境政策")
                             # 2. 顯示詳情 (顯示純文字)
-                            facility_cols_text_new = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
+                            facility_cols_text_new = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施", "環保政策"]
                             
                             for col in facility_cols_text_new:
                                 display_info(col, row.get(col))
@@ -910,11 +950,12 @@ if school_df is not None and article_df is not None:
                         tab_index = 5
                         if has_mission_data:
                             with tabs[tab_index]:
+                                st.subheader("辦學理念")
                                 # 顯示校訓
                                 display_info("校訓", row.get("校訓"))
                                 
-                                # 顯示辦學宗旨、學校關注事項、學校特色
-                                for col in other_categories["辦學理念"]:
+                                # 顯示辦學宗旨、學校關注事項、學校特色等核心理念 (更新為 philosophy_display_cols)
+                                for col in philosophy_display_cols:
                                     if col != "校訓": # 避免重複顯示
                                         display_info(col, row.get(col))
                                 
