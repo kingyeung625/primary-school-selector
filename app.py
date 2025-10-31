@@ -355,6 +355,70 @@ def display_info(label, value, is_fee=False):
     st.markdown(f"**{display_label}：** {display_value}")
 # --- [END] 輔助函數 ---
 
+# --- 篩選執行函數 (RUN SEARCH LOGIC) ---
+def run_search(school_df, col_map):
+    mask = pd.Series(True, index=school_df.index)
+    
+    # 1. 學校名稱篩選
+    query = st.session_state.school_name_search.strip() if 'school_name_search' in st.session_state else ""
+    if query: mask &= school_df["學校名稱"].str.contains(query, case=False, na=False)
+
+    # 2. 側邊欄篩選 (略過細節，保持原邏輯)
+    selected_region = st.session_state.get("region", [])
+    selected_net = st.session_state.get("net", [])
+    selected_cat1 = st.session_state.get("cat1", [])
+    selected_gender = st.session_state.get("gender", [])
+    selected_religion = st.session_state.get("religion", [])
+    selected_language = st.session_state.get("lang", [])
+    selected_related = st.session_state.get("related", [])
+    selected_transport = st.session_state.get("transport", [])
+    
+    if selected_region: mask &= school_df["區域"].isin(selected_region)
+    if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
+    if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
+    if selected_religion: mask &= school_df["宗教"].isin(selected_religion)
+    if selected_language: mask &= school_df["教學語言"].isin(selected_language)
+    if selected_net: mask &= school_df["小一學校網"].isin(selected_net)
+    
+    if selected_related:
+        related_mask = pd.Series(False, index=school_df.index)
+        for col in selected_related:
+            if col in school_df.columns: 
+                related_mask |= school_df[col].apply(lambda x: is_valid_data(x))
+        mask &= related_mask
+    
+    if selected_transport:
+        transport_mask = pd.Series(False, index=school_df.index)
+        for col in selected_transport:
+            if col in school_df.columns: transport_mask |= (school_df[col] == "有")
+        mask &= transport_mask
+    
+    # 3. 課業和師資篩選 (使用 session state 獲取值)
+    def apply_assessment_filter_text(mask, column, selection):
+        if selection == "0次": return mask & (school_df[column] == "0")
+        elif selection == "不多於1次": return mask & ((school_df[column] == "1") | (school_df[column] == "0"))
+        elif selection == "不多於2次": return mask & ((school_df[column] == "2") | (school_df[column] == "1") | (school_df[column] == "0"))
+        elif selection == "3次": return mask & (school_df[column] == "3")
+        return mask
+    
+    selected_g1_tests = st.session_state.g1_tests if 'g1_tests' in st.session_state else "不限"
+    selected_g1_exams = st.session_state.g1_exams if 'g1_exams' in st.session_state else "不限"
+    selected_g2_6_tests = st.session_state.g2_6_tests if 'g2_6_tests' in st.session_state else "不限"
+    selected_g2_6_exams = st.session_state.g2_6_exams if 'g2_6_exams' in st.session_state else "不限"
+    use_diverse_assessment = st.session_state.diverse if 'diverse' in st.session_state else False
+    has_tutorial_session = st.session_state.tutorial if 'tutorial' in st.session_state else False
+    
+    mask = apply_assessment_filter_text(mask, col_map["g1_tests"], selected_g1_tests)
+    mask = apply_assessment_filter_text(mask, col_map["g1_exams"], selected_g1_exams)
+    mask = apply_assessment_filter_text(mask, col_map["g2_6_tests"], selected_g2_6_tests)
+    mask = apply_assessment_filter_text(mask, col_map["g2_6_exams"], selected_g2_6_exams)
+    
+    if use_diverse_assessment: mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
+    if has_tutorial_session: mask &= (school_df[col_map["tutorial_session"]] == "有")
+    
+    # 師資按鈕篩選 (保持原樣，僅作佔位，因為純文字數據無法準確數值比較)
+    
+    st.session_state.filtered_schools = school_df[mask]
 
 # --- [修改後] 側邊欄篩選函數定義 (保持不變) ---
 def render_sidebar_filters(df):
@@ -453,13 +517,10 @@ if school_df is not None and article_df is not None:
         "分班安排": "分班安排"          
     }
 
-    # 呼叫側邊欄篩選器
+    # 1. 呼叫側邊欄篩選器
     render_sidebar_filters(school_df) 
     
-    # 創建一個容器來顯示結果，並在按鈕點擊時清空並重新執行篩選
-    results_container = st.container()
-    
-    # --- 篩選組件 (在按鈕上方) ---
+    # --- 2. 篩選組件區 ---
     
     school_name_query = st.text_input(
         "根據學校名稱搜尋", 
@@ -510,80 +571,15 @@ if school_df is not None and article_df is not None:
 
     st.write("") 
     
-    # 🚨 搜尋按鈕放在篩選組件區下方
+    # 3. 「搜尋學校」按鈕
     if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
+        # 呼叫獨立的搜尋函數，更新 filtered_schools
+        run_search(school_df, col_map)
         
-        mask = pd.Series(True, index=school_df.index)
-        query = st.session_state.school_name_search.strip() if 'school_name_search' in st.session_state else ""
-        
-        # --- 讀取 SIDEBAR 篩選器值並應用過濾 (保持不變) ---
-        selected_region = st.session_state.get("region", [])
-        selected_net = st.session_state.get("net", [])
-        selected_cat1 = st.session_state.get("cat1", [])
-        selected_gender = st.session_state.get("gender", [])
-        selected_religion = st.session_state.get("religion", [])
-        selected_language = st.session_state.get("lang", [])
-        selected_related = st.session_state.get("related", [])
-        selected_transport = st.session_state.get("transport", [])
-        
-        if query: mask &= school_df["學校名稱"].str.contains(query, case=False, na=False)
-        if selected_region: mask &= school_df["區域"].isin(selected_region)
-        if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
-        if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
-        if selected_religion: mask &= school_df["宗教"].isin(selected_religion)
-        if selected_language: mask &= school_df["教學語言"].isin(selected_language)
-        # 確保 "小一學校網" 欄位被當作字串進行比較
-        if selected_net: mask &= school_df["小一學校網"].isin(selected_net)
-        
-        if selected_related:
-            related_mask = pd.Series(False, index=school_df.index)
-            for col in selected_related:
-                if col in school_df.columns: 
-                    # 檢查欄位是否有有效數據 (is_valid_data)
-                    related_mask |= school_df[col].apply(lambda x: is_valid_data(x))
-                mask &= related_mask
-        
-        if selected_transport:
-            transport_mask = pd.Series(False, index=school_df.index)
-            for col in selected_transport:
-                if col in school_df.columns: transport_mask |= (school_df[col] == "有")
-            mask &= transport_mask
-        # --- SIDEBAR 篩選結束 ---
-        
-        # --- 主體其他篩選邏輯 (🚨 重要：由於資料現為純文字，這裡的數值篩選將不再準確！) ---
-        # 必須將篩選值轉換為字串來進行匹配
-        
-        def apply_assessment_filter_text(mask, column, selection):
-            if selection == "0次": return mask & (school_df[column] == "0")
-            elif selection == "不多於1次": 
-                # 純文字無法進行 <= 1 比較，只能匹配 "1" 或 "0"
-                return mask & ((school_df[column] == "1") | (school_df[column] == "0"))
-            elif selection == "不多於2次": 
-                # 純文字匹配 "2", "1", "0"
-                return mask & ((school_df[column] == "2") | (school_df[column] == "1") | (school_df[column] == "0"))
-            elif selection == "3次": return mask & (school_df[column] == "3")
-            return mask
-            
-        selected_g1_tests = st.session_state.g1_tests if 'g1_tests' in st.session_state else "不限"
-        selected_g1_exams = st.session_state.g1_exams if 'g1_exams' in st.session_state else "不限"
-        selected_g2_6_tests = st.session_state.g2_6_tests if 'g2_6_tests' in st.session_state else "不限"
-        selected_g2_6_exams = st.session_state.g2_6_exams if 'g2_6_exams' in st.session_state else "不限"
-        use_diverse_assessment = st.session_state.diverse if 'diverse' in st.session_state else False
-        has_tutorial_session = st.session_state.tutorial if 'tutorial' in st.session_state else False
-        
-        mask = apply_assessment_filter_text(mask, col_map["g1_tests"], selected_g1_tests)
-        mask = apply_assessment_filter_text(mask, col_map["g1_exams"], selected_g1_exams)
-        mask = apply_assessment_filter_text(mask, col_map["g2_6_tests"], selected_g2_6_tests)
-        mask = apply_assessment_filter_text(mask, col_map["g2_6_exams"], selected_g2_6_exams)
-        
-        if use_diverse_assessment: mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
-        if has_tutorial_session: mask &= (school_df[col_map["tutorial_session"]] == "有")
-        
-        # 師資按鈕篩選邏輯：純文字無法進行數字比較，暫時不做數值過濾
-        
-        st.session_state.filtered_schools = school_df[mask]
+    # 創建一個容器來顯示結果
+    results_container = st.container()
 
-    # --- 結果顯示區 (不論是否點擊按鈕，只要 state 中有結果就顯示) ---
+    # --- 4. 搜尋結果區 ---
     if not st.session_state.filtered_schools.empty:
         
         # --- 內容組織變數定義 (移到迴圈外) ---
@@ -977,7 +973,7 @@ if school_df is not None and article_df is not None:
                         
                         # --- [END] TABS 結構 ---
 
-                # 🚨 放在搜尋結果的下方：回到最頂按鈕
+                # 5. 「回到最頂」按鈕
                 st.divider()
                 if st.button("⬆️ 回到最頂", use_container_width=True):
                     # 使用 st.rerun 模擬回到頂部的效果
