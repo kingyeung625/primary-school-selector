@@ -255,7 +255,8 @@ LABEL_MAP = {
     "其他收費_費用": "其他",
     "一條龍中學": "一條龍中學",
     "直屬中學": "直屬中學",
-    "聯繫中學": "聯繫中學"
+    "聯繫中學": "聯繫中學",
+    "校訓": "校訓" # 新增校訓標籤
 }
 
 def is_valid_data(value):
@@ -571,7 +572,7 @@ if school_df is not None and article_df is not None:
             
             # 師資按鈕篩選邏輯
             if st.session_state.master_filter > 0:
-                mask &= (school_df["碩士_博士或以上人數百分率"] >= st.session_state.master_filter)
+                mask &= (school_df["碩士／博士或以上人數百分率"] >= st.session_state.master_filter)
             if st.session_state.exp_filter > 0:
                 mask &= (school_df["10年年資或以上人數百分率"] >= st.session_state.exp_filter)
             if st.session_state.sen_filter > 0:
@@ -603,7 +604,7 @@ if school_df is not None and article_df is not None:
                 "教師專業培訓及發展"
             ]
             other_categories = {
-                "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色"],
+                "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色", "校訓"], # 新增「校訓」
             }
             facility_cols_counts = ["課室數目", "禮堂數目", "操場數目", "圖書館數目"]
             facility_cols_text = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
@@ -619,13 +620,14 @@ if school_df is not None and article_df is not None:
             }
             
             for index, row in filtered_schools.iterrows():
-                # 檢查是否有辦學理念數據
+                # 檢查是否有辦學理念數據 (包括校訓)
                 has_mission_data = any(is_valid_data(row.get(col)) for col in other_categories["辦學理念"])
                 
                 # 建立 tabs 列表
                 tab_list = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構"]
                 if has_mission_data:
-                    tab_list.append("辦學理念與補充資料")
+                    # 將 Tab 名稱改為「辦學理念」
+                    tab_list.append("辦學理念") 
                 tab_list.append("聯絡資料")
                 
                 with st.expander(f"**{row['學校名稱']}**"):
@@ -932,15 +934,19 @@ if school_df is not None and article_df is not None:
                         """
                         st.markdown(class_table_html, unsafe_allow_html=True)
 
-                    # --- 動態 TABS: 辦學理念與補充資料 (移除「其他補充資料」的遍歷邏輯) ---
+                    # --- 動態 TABS: 辦學理念 (Tab index 5) ---
                     tab_index = 5
                     if has_mission_data:
                         with tabs[tab_index]:
-                            st.subheader("辦學理念")
-                            for col in other_categories["辦學理念"]:
-                                display_info(col, row.get(col))
+                            # 移除 st.subheader("辦學理念")
+
+                            # 顯示校訓
+                            display_info("校訓", row.get("校訓"))
                             
-                            # 由於已移除遍歷和顯示「其他補充資料」的邏輯，這裡不需要額外的檢查或分隔線。
+                            # 顯示辦學宗旨、學校關注事項、學校特色
+                            for col in other_categories["辦學理念"]:
+                                if col != "校訓": # 避免重複顯示
+                                    display_info(col, row.get(col))
                             
                         tab_index += 1
                     
