@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import altair as alt # <-- [新增] 引入 Altair 用於繪製圖表
+import altair as alt # <-- 繪圖函式庫
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
@@ -277,7 +277,7 @@ def display_info(label, value, is_fee=False):
             st.markdown(f"**{display_label}：** [{value}]({value})")
             return 
         elif "(%)" in display_label and isinstance(value, (int, float)):
-            display_value = f"{int(value)}%"
+            display_value = f"{value:.1f}%" # 顯示百分比時保留一位小數
         elif is_fee:
             if isinstance(value, (int, float)) and value > 0:
                 display_value = f"${int(value)}"
@@ -767,7 +767,10 @@ if school_df is not None and article_df is not None:
 
                         # 1. 準備學歷及培訓數據
                         qual_data = {
-                            '類別': ['已接受師資培訓', '學士學位', '碩士/博士學位', '特殊教育培訓'],
+                            '類別': [LABEL_MAP.get("已接受師資培訓人數百分率", "已接受師資培訓"), 
+                                     LABEL_MAP.get("學士人數百分率", "學士學位"), 
+                                     LABEL_MAP.get("碩士／博士或以上人數百分率", "碩士/博士學位"), 
+                                     LABEL_MAP.get("特殊教育培訓人數百分率", "特殊教育培訓")],
                             '百分比': [
                                 row.get("已接受師資培訓人數百分率", 0),
                                 row.get("學士人數百分率", 0),
@@ -778,11 +781,23 @@ if school_df is not None and article_df is not None:
                         qual_df = pd.DataFrame(qual_data)
                         
                         # 2. 繪製條形圖 (Bar Chart)
-                        bar_chart = alt.Chart(qual_df).mark_bar(color='#1abc9c').encode(
+                        bars = alt.Chart(qual_df).mark_bar(color='#1abc9c').encode(
                             x=alt.X('百分比', title='百分比 (%)', axis=alt.Axis(format='~s')),
                             y=alt.Y('類別', title=None, sort='-x'), # 依百分比降序排序
-                            tooltip=['類別', alt.Tooltip('百分比', format='.1f')]
-                        ).properties(
+                        )
+                        
+                        # 2b. 加入文字標籤
+                        text = bars.mark_text(
+                            align='left',
+                            baseline='middle',
+                            dx=3,  # 稍微偏離條形圖
+                            fontSize=12
+                        ).encode(
+                            text=alt.Text('百分比', format='.1f'), # 顯示百分比數字 (一位小數)
+                            color=alt.value('black') # 文字顏色
+                        )
+
+                        bar_chart = (bars + text).properties(
                             title='教師學術及培訓背景百分比'
                         ).configure_view(
                             strokeWidth=0 # 移除圖表邊框
@@ -795,7 +810,9 @@ if school_df is not None and article_df is not None:
 
                         # 3. 準備年資數據
                         seniority_data = {
-                            '年資': ['0-4年年資', '5-9年年資', '10年或以上年資'],
+                            '年資': [LABEL_MAP.get("0至4年年資人數百分率", '0-4年年資'), 
+                                     LABEL_MAP.get("5至9年年資人數百分率", '5-9年年資'), 
+                                     LABEL_MAP.get("10年年資或以上人數百分率", '10年或以上年資')],
                             '百分比': [
                                 row.get("0至4年年資人數百分率", 0),
                                 row.get("5至9年年資人數百分率", 0),
@@ -805,12 +822,24 @@ if school_df is not None and article_df is not None:
                         seniority_df = pd.DataFrame(seniority_data)
                         
                         # 4. 繪製圓形圖 (Pie Chart)
-                        pie_chart = alt.Chart(seniority_df).mark_arc(outerRadius=120, innerRadius=50).encode(
-                            theta=alt.Theta(field="百分比", type="quantitative"),
+                        base = alt.Chart(seniority_df).encode(
+                            theta=alt.Theta("百分比", stack=True)
+                        )
+
+                        pie = base.mark_arc(outerRadius=120, innerRadius=50).encode(
                             color=alt.Color(field="年資", title="年資類別"),
                             order=alt.Order("百分比", sort="descending"), # 依百分比降序排列
                             tooltip=["年資", alt.Tooltip("百分比", format=".1f")]
-                        ).properties(
+                        )
+                        
+                        # 4b. 加入文字標籤 (數字)
+                        text = base.mark_text(radius=100, fontSize=12).encode( # 設置半徑在圓環內
+                            text=alt.Text("百分比", format=".1f"), # 顯示百分比數字 (一位小數)
+                            order=alt.Order("百分比", sort="descending"),
+                            color=alt.value("white") # 確保文字在深色背景上可見
+                        )
+
+                        pie_chart = (pie + text).properties(
                             title='教師年資分佈'
                         ).configure_view(
                             strokeWidth=0 # 移除圖表邊框
