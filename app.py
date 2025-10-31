@@ -5,9 +5,23 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示、表格樣式及側邊欄按鈕優化 ---
+# --- 注入 CSS 實現 Tab 滾動提示、表格樣式、側邊欄按鈕優化及 [NEW] 背景圖片設定 ---
 st.markdown("""
     <style>
+    /* [NEW] 背景圖片設定及響應式處理 */
+    .stApp {
+        background-image: url("https://raw.githubusercontent.com/kingyeung625/primary-school-selector/b20b072c8613dfd2f104d70840ab122203691ab0/Gemini_Generated_Image_2fdadv2fdadv2fda.png"); 
+        background-size: cover; /* 確保圖片覆蓋整個容器，實現響應式 */
+        background-position: center; /* 圖片中心對齊 */
+        background-attachment: fixed; /* 內容滾動時，背景圖片固定不動 */
+        background-repeat: no-repeat;
+    }
+
+    /* [NEW] 側邊欄透明化，確保背景可見 */
+    [data-testid="stSidebar"] {
+        background-color: rgba(255, 255, 255, 0.85); /* 85% 透明度 */
+    }
+
     /* 1. 基本容器設置 */
     div[data-testid="stTabs"] {
         position: relative;
@@ -220,7 +234,10 @@ def is_valid_data(value):
 
 # 僅顯示評估數字（現簡化為顯示純文字）
 def display_assessment_count(value):
-    return value if is_valid_data(value) else "-"
+    # 由於 is_valid_data 已經確保 value 是一個清理過的字串
+    if is_valid_data(value):
+        return str(value)
+    return "-"
 
 # 格式化篩選器按鈕的高亮樣式 (保持不變)
 def style_filter_button(label, value, filter_key):
@@ -876,7 +893,7 @@ if school_df is not None and article_df is not None:
                         """
                         st.markdown(class_table_html, unsafe_allow_html=True)
 
-                    # --- 動態 TABS: 辦學理念 (Tab index 5) ---
+                    # --- 動態 TABS: 辦學理念 (Tab index 5 或 6) ---
                     tab_index = 5
                     if has_mission_data:
                         with tabs[tab_index]:
