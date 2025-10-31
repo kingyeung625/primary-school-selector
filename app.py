@@ -5,7 +5,7 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示 (強烈箭頭版) ---
+# --- 注入 CSS 實現 Tab 滾動提示 (移除箭頭/陰影) ---
 st.markdown("""
     <style>
     /* 1. 基本容器設置 */
@@ -22,30 +22,26 @@ st.markdown("""
         display: none;
     }
 
-    /* 2. 創建右側箭頭提示 (>> 符號) */
+    /* 2. 創建右側箭頭提示 (>> 符號) - 設置為隱藏 */
     div[data-testid="stTabs"]::after {
-        content: '>>'; /* <-- 修正：確保內容是 >> */
+        content: none; /* 移除箭頭內容 */
         position: absolute;
         top: 0;
         right: 0;
         height: 100%;
-        width: 35px; /* 提示區寬度 */
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        padding-right: 5px;
-        font-weight: bold;
-        font-size: 1.2em; /* 讓箭頭更明顯 */
-        color: #1abc9c; /* 顏色與按鈕風格一致 */
-        
-        /* 使用漸變色，從不透明的白色開始，使其有強烈的遮擋感 */
-        background: linear-gradient(to left, rgba(255, 255, 255, 1) 40%, rgba(255, 255, 255, 0) 100%);
-        
-        pointer-events: none; /* 讓箭頭不阻擋點擊 Tab */
+        width: 0px; /* 移除寬度 */
+        background: none; /* 移除所有背景漸變 */
+        box-shadow: none; /* 移除所有陰影 */
+        pointer-events: none;
         z-index: 10;
     }
     
-    /* 註：我們只使用單邊箭頭作為提示，確保穩定性。 */
+    /* 確保左側箭頭也被移除 (如果之前有定義的話) */
+    div[data-testid="stTabs"]::before {
+        content: none;
+        display: none;
+    }
+    
     </style>
 """, unsafe_allow_html=True)
 # --- 注入 CSS 結束 ---
