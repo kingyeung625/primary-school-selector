@@ -164,7 +164,7 @@ def load_data():
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
-        # === 解決方案：新增教師人數欄位轉換邏輯 START (保留並擴展) ===
+        # === 解決方案：新增教師人數欄位轉換邏輯 START (修復讀取問題) ===
         teacher_count_cols_all = ["核准編制教師職位數目", "教師總人數", "上學年核准編制教師職位數目", "上學年教師總人數"] 
         
         for col in teacher_count_cols_all:
@@ -282,7 +282,7 @@ def style_filter_button(label, value, filter_key):
 
 # 更新 display_info 函數以始終顯示標籤
 def display_info(label, value, is_fee=False):
-    # 關鍵：這裡我們使用 label 來檢查是哪個欄位，即使 label 是錯誤的
+    # 關鍵：這裡我們使用 label 來檢查是哪個欄位
     display_label = LABEL_MAP.get(label, label) 
     display_value = "沒有" # 預設值
     is_time_field = label in ["上課時間_", "放學時間", "午膳時間", "午膳結束時間"]
@@ -777,14 +777,15 @@ if school_df is not None and article_df is not None:
                         
                         st.markdown(policy_list_html, unsafe_allow_html=True)
                             
-                    # --- TAB 3: 師資概況 (已修復數據讀取) ---
+                    # --- TAB 3: 師資概況 (已修復數據讀取和圖表顯示) ---
                     with tabs[2]:
                         st.subheader("師資團隊數字")
                         c1, c2 = st.columns(2)
                         with c1:
-                            # 修正為使用實際 CSV 欄位名稱，但 display_info 會自動將其映射到 Label Map 中簡潔的名稱
+                            # 使用 CSV 實際名稱
                             display_info("核准編制教師職位數目", row.get("核准編制教師職位數目")) 
                         with c2:
+                            # 使用 CSV 實際名稱
                             display_info("教師總人數", row.get("教師總人數"))
 
                         st.divider()
@@ -801,7 +802,6 @@ if school_df is not None and article_df is not None:
                         for col_name, display_label in qual_cols_map.items():
                             qual_data.append({
                                 '類別': display_label,
-                                # 關鍵：讀取原始百分比數值
                                 '百分比': row.get(col_name, 0) 
                             })
                         qual_df = pd.DataFrame(qual_data)
@@ -849,7 +849,6 @@ if school_df is not None and article_df is not None:
                         for col_name, display_label in seniority_cols_map.items():
                             seniority_data.append({
                                 '年資': display_label,
-                                # 關鍵：讀取原始百分比數值
                                 '百分比': row.get(col_name, 0)
                             })
                         seniority_df = pd.DataFrame(seniority_data)
