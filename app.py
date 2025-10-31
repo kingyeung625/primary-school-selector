@@ -869,11 +869,9 @@ if school_df is not None and article_df is not None:
                         display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
 
 
-                    # --- TAB 4: 學校設施 (已簡化為 DOCX 格式) ---
+                    # --- TAB 4: 學校設施 (已簡化並移除標題與分隔線) ---
                     with tabs[3]:
-                        st.subheader("設施數量統計")
-                        
-                        # 顯示數量統計 (課室, 禮堂, 操場, 圖書館) - 兩列佈局
+                        # 1. 顯示數量統計 (直接顯示，無標題)
                         col_count1, col_count2 = st.columns(2)
                         with col_count1:
                             display_info("課室數目", row.get("課室數目"))
@@ -882,11 +880,11 @@ if school_df is not None and article_df is not None:
                             display_info("禮堂數目", row.get("禮堂數目"))
                             display_info("圖書館數目", row.get("圖書館數目"))
                         
-                        st.divider()
-                        st.subheader("設施詳情")
-                        
-                        # 顯示文本類設施 (特別室, 其他學校設施, 支援有特殊教育需要學生的設施)
+                        # 2. 顯示詳情 (直接顯示，無標題和分隔線)
                         facility_cols_text_new = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
+                        
+                        # 不使用 st.divider()
+                        # 不使用 st.subheader()
                         
                         for col in facility_cols_text_new:
                             # 使用 display_info 確保格式統一
