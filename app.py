@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-# Removed: import altair as alt # <-- 已移除 Altair 庫
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
@@ -106,7 +105,7 @@ st.markdown("""
         font-weight: 600;
         border-bottom: 2px solid #ccc;
         padding: 8px 12px;
-        text-align: center;
+        text-align: left; /* 保持左對齊 */
     }
     .info-table td {
         padding: 6px 12px;
@@ -114,7 +113,7 @@ st.markdown("""
         text-align: left;
     }
     .info-table td:nth-child(2) {
-        text-align: center;
+        text-align: center; /* 讓數字置中 */
         font-weight: bold;
     }
     </style>
@@ -630,7 +629,8 @@ if school_df is not None and article_df is not None:
                 with st.expander(f"**{row['學校名稱']}**"):
                     
                     # --- 相關文章 ---
-                    related_articles = article_df[related_articles["學校名稱"] == row["學校名稱"]] # 修正了變量名錯誤
+                    # 修正 NameError: related_articles 應為 article_df
+                    related_articles = article_df[article_df["學校名稱"] == row["學校名稱"]] 
                     if not related_articles.empty:
                         with st.expander("相關文章", expanded=False): 
                             for _, article_row in related_articles.iterrows():
@@ -799,13 +799,12 @@ if school_df is not None and article_df is not None:
                         
                         st.markdown(policy_list_html, unsafe_allow_html=True)
                             
-                    # --- TAB 3: 師資概況 (已修復數據讀取和圖表顯示) ---
+                    # --- TAB 3: 師資概況 (已修復 NameError 並使用 HTML 表格重組) ---
                     with tabs[2]:
                         st.subheader("師資團隊數字")
                         c1, c2 = st.columns(2)
-                        
-                        # 確保實數可以正常顯示
                         with c1:
+                            # 使用 CSV 實際名稱
                             display_info("核准編制教師職位數目", row.get("核准編制教師職位數目")) 
                         with c2:
                             display_info("教師總人數", row.get("教師總人數"))
@@ -837,6 +836,7 @@ if school_df is not None and article_df is not None:
                         """
                         for col_name, display_label in qual_cols_map.items():
                             value = row.get(col_name, 0)
+                            # 格式化為 X.X%
                             display_value = f"{value:.1f}%"
                             qual_table_html += f"""
                                 <tr>
@@ -866,6 +866,7 @@ if school_df is not None and article_df is not None:
                         """
                         for col_name, display_label in seniority_cols_map.items():
                             value = row.get(col_name, 0)
+                            # 格式化為 X.X%
                             display_value = f"{value:.1f}%"
                             seniority_table_html += f"""
                                 <tr>
