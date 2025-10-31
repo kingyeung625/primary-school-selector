@@ -786,15 +786,14 @@ if school_df is not None and article_df is not None:
                             y=alt.Y('類別', title=None, sort='-x'), # 依百分比降序排序
                         )
                         
-                        # 2b. 加入文字標籤
+                        # 2b. 加入文字標籤 (已修改：置中並使用白色字體)
                         text = bars.mark_text(
-                            align='left',
+                            align='center', # 置中顯示在棒形上
                             baseline='middle',
-                            dx=3,  # 稍微偏離條形圖
                             fontSize=12
                         ).encode(
                             text=alt.Text('百分比', format='.1f'), # 顯示百分比數字 (一位小數)
-                            color=alt.value('black') # 文字顏色
+                            color=alt.value('white') # 文字顏色設為白色，確保在棒形圖上可見
                         )
 
                         bar_chart = (bars + text).properties(
