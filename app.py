@@ -198,9 +198,6 @@ LABEL_MAP = {
 }
 
 def is_valid_data(value):
-    # 對於百分比欄位，0 也是有效數據
-    if isinstance(value, (int, float)):
-        return True
     return pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']
 
 # 僅顯示評估數字
@@ -282,7 +279,6 @@ def display_info(label, value, is_fee=False):
         else:
             display_value = val_str
     
-    # 處理空/無效數據
     elif is_fee:
         if label in ["學費", "堂費", "家長教師會費"]:
              display_value = "$0"
@@ -715,14 +711,14 @@ if school_df is not None and article_df is not None:
                         c_chart1, c_chart2 = st.columns(2)
                         
                         # 只有在數據有效時才嘗試繪圖
-                        if not df_qualification.empty:
+                        if not df_qualification.empty and df_qualification['Percentage'].sum() > 0:
                             with c_chart1:
                                 st.altair_chart(create_pie_chart(df_qualification, "學歷分佈"), use_container_width=True)
                         else:
                             with c_chart1:
                                 st.info("學歷分佈數據不足。")
                                 
-                        if not df_experience.empty:
+                        if not df_experience.empty and df_experience['Percentage'].sum() > 0:
                             with c_chart2:
                                 st.altair_chart(create_pie_chart(df_experience, "年資分佈"), use_container_width=True)
                         else:
