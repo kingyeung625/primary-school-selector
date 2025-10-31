@@ -258,7 +258,19 @@ LABEL_MAP = {
     "全校參與照顧學生的多樣性": "全校參與照顧學生的多樣性",
     "全校參與模式融合教育": "全校參與模式融合教育",
     "非華語學生的教育支援": "非華語學生的教育支援",
-    "學費減免": "學費減免"
+    "學費減免": "學費減免",
+    "環保政策": "環保政策",
+    "校風": "校風",
+    "學校發展計劃": "學校發展計劃",
+    "學校管理架構": "學校管理架構",
+    "法團校董會_校管會_校董會": "法團校董會/校管會/校董會",
+    "學校特色_其他": "其他學校特色",
+    "課程剪裁及調適措施": "課程剪裁及調適措施",
+    "正確價值觀_態度和行為的培養": "正確價值觀、態度和行為的培養",
+    "共通能力的培養": "共通能力的培養",
+    "小學教育課程更新重點的發展": "小學教育課程更新重點的發展",
+    "學習和教學策略": "學習和教學策略",
+    "學校關注事項": "學校關注事項",
 }
 
 def is_valid_data(value):
@@ -410,8 +422,7 @@ def render_sidebar_filters(df):
         "關聯學校類型 (一條龍/直屬/聯繫)", 
         ["一條龍中學", "直屬中學", "聯繫中學"], 
         default=st.session_state.get("related", []),
-        key="related" 
-        # 注意：此處篩選邏輯不變，仍使用 'related' key
+        key="related"
     )
 
     # 8. 校車服務 (key="transport")
@@ -441,25 +452,6 @@ if school_df is not None and article_df is not None:
         "班級教學模式": "班級教學模式", 
         "分班安排": "分班安排"          
     }
-    
-    # --- 新增/移動的欄位列表 ---
-    
-    # 新增的副分類群組
-    collaboration_and_life_cols = ["家校合作", "健康校園生活", "全方位學習", "學校生活備註"]
-    student_support_cols = ["全校參與照顧學生的多樣性", "全校參與模式融合教育", "非華語學生的教育支援"]
-    
-    # 課程發展與策略 (新列表，供顯示用)
-    curriculum_cols = ["學校關注事項", "學習和教學策略", "小學教育課程更新重點的發展", "共通能力的培養", "正確價值觀_態度和行為的培養", "課程剪裁及調適措施"]
-
-
-    # 辦學理念分頁的欄位 (移除被移動的欄位)
-    philosophy_cols = ["辦學宗旨", "學校管理架構", "法團校董會_校管會_校董會", "環保政策", "學校特色_其他", "校風", "學校發展計劃"]
-    
-    other_categories = {
-        "辦學理念": philosophy_cols,
-        # 移除 '協作與活動' 和 '學生支援'
-    }
-
 
     # 呼叫側邊欄篩選器
     render_sidebar_filters(school_df) 
@@ -473,6 +465,7 @@ if school_df is not None and article_df is not None:
     with st.expander("根據課業安排篩選"):
         assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
         
+        # 🚨 警告：此處篩選仍使用數字比較邏輯，但由於資料已轉為純文字，這可能不再準確。
         c1, c2, c3, c4 = st.columns(4)
         with c1:
             selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options, key="g1_tests")
@@ -546,7 +539,7 @@ if school_df is not None and article_df is not None:
                 if col in school_df.columns: 
                     # 檢查欄位是否有有效數據 (is_valid_data)
                     related_mask |= school_df[col].apply(lambda x: is_valid_data(x))
-            mask &= related_mask
+                mask &= related_mask
         
         if selected_transport:
             transport_mask = pd.Series(False, index=school_df.index)
@@ -584,6 +577,31 @@ if school_df is not None and article_df is not None:
     # --- 結果顯示區 (不論是否點擊按鈕，只要 state 中有結果就顯示) ---
     if not st.session_state.filtered_schools.empty:
         
+        # --- 內容組織變數定義 (移到迴圈外) ---
+        fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用", "學費減免"]
+        teacher_stat_cols = [
+            "已接受師資培訓人數百分率", "學士人數百分率", "碩士／博士或以上人數百分率", 
+            "特殊教育培訓人數百分率", "0至4年年資人數百分率", "5至9年年資人數百分率", 
+            "10年年資或以上人數百分率", "核准編制教師職位數目", "教師總人數", 
+            "教師專業培訓及發展"
+        ]
+        
+        facility_cols_counts = ["課室數目", "禮堂數目", "操場數目", "圖書館數目"]
+        facility_cols_text = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施", "環保政策"]
+        
+        
+        # 主分類 6: 辦學理念 (更新欄位列表, 移除被移動的)
+        philosophy_display_cols = ["辦學宗旨", "學校管理架構", "法團校董會_校管會_校董會", "環保政策", "學校特色_其他", "校風", "學校發展計劃"]
+        
+        # 主分類 2: 學業評估與校園生活 (新增欄位列表)
+        curriculum_cols = ["學校關注事項", "學習和教學策略", "小學教育課程更新重點的發展", "共通能力的培養", "正確價值觀_態度和行為的培養", "課程剪裁及調適措施"]
+        collaboration_and_life_cols = ["家校合作", "健康校園生活", "全方位學習", "學校生活備註"]
+        student_support_cols = ["全校參與照顧學生的多樣性", "全校參與模式融合教育", "非華語學生的教育支援"]
+        
+        # 🚨 修正 NameError: 確保 all_philosophy_cols 被正確定義
+        all_philosophy_cols = ["校訓"] + philosophy_display_cols
+        
+        # --- 開始顯示結果 ---
         with results_container:
             st.divider()
             filtered_schools = st.session_state.filtered_schools
@@ -592,34 +610,10 @@ if school_df is not None and article_df is not None:
             if filtered_schools.empty:
                 st.warning("找不到符合所有篩選條件的學校。")
             else:
-                # 欄位定義 (保持名稱不變)
-                fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用", "學費減免"]
-                teacher_stat_cols = [
-                    "已接受師資培訓人數百分率", "學士人數百分率", "碩士／博士或以上人數百分率", 
-                    "特殊教育培訓人數百分率", "0至4年年資人數百分率", "5至9年年資人數百分率", 
-                    "10年年資或以上人數百分率", "核准編制教師職位數目", "教師總人數", 
-                    "教師專業培訓及發展"
-                ]
-                
-                facility_cols_counts = ["課室數目", "禮堂數目", "操場數目", "圖書館數目"]
-                facility_cols_text = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
-                
-                
-                # --- 新的內容群組 ---
-                
-                # 主分類 6: 辦學理念 (更新欄位列表, 移除被移動的)
-                philosophy_display_cols = ["辦學宗旨", "學校管理架構", "法團校董會_校管會_校董會", "環保政策", "學校特色_其他", "校風", "學校發展計劃"]
-                
-                # 主分類 2: 學業評估與校園生活 (新增欄位列表)
-                curriculum_cols = ["學校關注事項", "學習和教學策略", "小學教育課程更新重點的發展", "共通能力的培養", "正確價值觀_態度和行為的培養", "課程剪裁及調適措施"]
-                collaboration_and_life_cols = ["家校合作", "健康校園生活", "全方位學習", "學校生活備註"]
-                student_support_cols = ["全校參與照顧學生的多樣性", "全校參與模式融合教育", "非華語學生的教育支援"]
-                
-                all_philosophy_cols = ["校訓"] + philosophy_display_cols
-                has_mission_data = any(is_valid_data(row.get(col)) for col in all_philosophy_cols)
-                
                 
                 for index, row in filtered_schools.iterrows():
+                    # 🚨 修正 NameError: 將 has_mission_data 的判斷移到迴圈內 (因為 row 是在迴圈內定義的)
+                    has_mission_data = any(is_valid_data(row.get(col)) for col in all_philosophy_cols)
                     
                     # 建立 tabs 列表
                     tab_list = ["基本資料", "學業評估與校園生活", "師資概況", "學校設施", "班級結構"] # 🚨 重命名
@@ -651,8 +645,8 @@ if school_df is not None and article_df is not None:
                                 display_info("區域", row.get("區域"))
                                 display_info("學校類別1", row.get("資助類型"))
                                 display_info("創校年份", row.get("創校年份"))
-                                display_info("宗教", row.get("宗教")) # NEW
-                                display_info("教學語言", row.get("教學語言")) # NEW
+                                display_info("宗教", row.get("宗教")) 
+                                display_info("教學語言", row.get("教學語言")) 
                             with c2: 
                                 display_info("小一學校網", row.get("小一學校網"))
                                 display_info("學校類別2", row.get("上課時間"))
