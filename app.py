@@ -188,7 +188,7 @@ def load_data():
         return None, None
 
 # --- [START] 輔助函數 ---
-# ... (LABEL_MAP, is_valid_data, display_assessment_count, style_filter_button, display_info 保持不變)
+# 為了避免在 display_info 中出現 %, 這裡將 LABEL_MAP 中的 (%) 移除
 LABEL_MAP = { 
     "校監_校管會主席姓名": "校監", 
     "校長姓名": "校長",
@@ -199,13 +199,13 @@ LABEL_MAP = {
     "午膳結束時間": "午膳結束時間",
     "上學年核准編制教師職位數目": "核准編制教師職位數目",
     "上學年教師總人數": "教師總人數",
-    "已接受師資培訓人數百分率": "已接受師資培訓(%)", 
-    "學士人數百分率": "學士學位(%)",
-    "碩士／博士或以上人數百分率": "碩士/博士學位(%)",
-    "特殊教育培訓人數百分率": "特殊教育培訓(%)",
-    "0至4年年資人數百分率": "0-4年年資(%)", 
-    "5至9年年資人數百分率": "5-9年年資(%)", 
-    "10年年資或以上人數百分率": "10+年年資(%)", 
+    "已接受師資培訓人數百分率": "已接受師資培訓", 
+    "學士人數百分率": "學士學位",
+    "碩士／博士或以上人數百分率": "碩士/博士學位",
+    "特殊教育培訓人數百分率": "特殊教育培訓",
+    "0至4年年資人數百分率": "0-4年年資", 
+    "5至9年年資人數百分率": "5-9年年資", 
+    "10年年資或以上人數百分率": "10+年年資", 
     "課室數目": "課室",
     "禮堂數目": "禮堂",
     "操場數目": "操場",
@@ -273,11 +273,15 @@ def display_info(label, value, is_fee=False):
 
     if is_valid_data(value):
         val_str = str(value)
+        # 檢查是否為百分比欄位 (通過檢查LABEL_MAP中對應的key是否包含"百分率")
+        is_percentage_field = any(k == label and '百分率' in k for k in LABEL_MAP)
+        
         if "網頁" in label and "http" in val_str:
             st.markdown(f"**{display_label}：** [{value}]({value})")
             return 
-        elif "(%)" in display_label and isinstance(value, (int, float)):
-            display_value = f"{value:.1f}%" # 顯示百分比時保留一位小數
+        elif is_percentage_field and isinstance(value, (int, float)):
+            # 這裡不顯示 %, 因為圖表標籤不應顯示
+            display_value = f"{value:.1f}"
         elif is_fee:
             if isinstance(value, (int, float)) and value > 0:
                 display_value = f"${int(value)}"
@@ -767,10 +771,13 @@ if school_df is not None and article_df is not None:
 
                         # 1. 準備學歷及培訓數據
                         qual_data = {
-                            '類別': [LABEL_MAP.get("已接受師資培訓人數百分率", "已接受師資培訓"), 
-                                     LABEL_MAP.get("學士人數百分率", "學士學位"), 
-                                     LABEL_MAP.get("碩士／博士或以上人數百分率", "碩士/博士學位"), 
-                                     LABEL_MAP.get("特殊教育培訓人數百分率", "特殊教育培訓")],
+                            # 使用 LABEL_MAP 的友好名稱，且沒有 (%) 
+                            '類別': [
+                                LABEL_MAP.get("已接受師資培訓人數百分率"), 
+                                LABEL_MAP.get("學士人數百分率"), 
+                                LABEL_MAP.get("碩士／博士或以上人數百分率"), 
+                                LABEL_MAP.get("特殊教育培訓人數百分率")
+                            ],
                             '百分比': [
                                 row.get("已接受師資培訓人數百分率", 0),
                                 row.get("學士人數百分率", 0),
@@ -782,22 +789,27 @@ if school_df is not None and article_df is not None:
                         
                         # 2. 繪製條形圖 (Bar Chart)
                         bars = alt.Chart(qual_df).mark_bar(color='#1abc9c').encode(
-                            x=alt.X('百分比', title='百分比 (%)', axis=alt.Axis(format='~s')),
-                            y=alt.Y('類別', title=None, sort='-x'), # 依百分比降序排序
+                            # X 軸格式化為百分比
+                            x=alt.X('百分比', title='百分比', axis=alt.Axis(format='~s')),
+                            # Y 軸使用移除 % 的類別名稱
+                            y=alt.Y('類別', title=None, sort='-x'), 
+                            # 提示框格式化為百分比
+                            tooltip=['類別', alt.Tooltip('百分比', format='.1f%')]
                         )
                         
-                        # 2b. 加入文字標籤 (已修改：置中並使用白色字體)
+                        # 2b. 加入文字標籤 (已修改：置中、白色字體、粗體、大字體、加 % 符號)
                         text = bars.mark_text(
-                            align='center', # 置中顯示在棒形上
+                            align='center', 
                             baseline='middle',
-                            fontSize=12
+                            fontSize=14, # 放大字體
+                            fontWeight='bold' # 加粗
                         ).encode(
-                            text=alt.Text('百分比', format='.1f'), # 顯示百分比數字 (一位小數)
-                            color=alt.value('white') # 文字顏色設為白色，確保在棒形圖上可見
+                            text=alt.Text('百分比', format='.1f%'), # 顯示百分比數字並加 % 符號
+                            color=alt.value('white') # 文字顏色設為白色
                         )
 
                         bar_chart = (bars + text).properties(
-                            title='教師學術及培訓背景百分比'
+                            title='教師學術及培訓背景'
                         ).configure_view(
                             strokeWidth=0 # 移除圖表邊框
                         ).interactive()
@@ -809,9 +821,12 @@ if school_df is not None and article_df is not None:
 
                         # 3. 準備年資數據
                         seniority_data = {
-                            '年資': [LABEL_MAP.get("0至4年年資人數百分率", '0-4年年資'), 
-                                     LABEL_MAP.get("5至9年年資人數百分率", '5-9年年資'), 
-                                     LABEL_MAP.get("10年年資或以上人數百分率", '10年或以上年資')],
+                            # 使用 LABEL_MAP 的友好名稱，且沒有 (%)
+                            '年資': [
+                                LABEL_MAP.get("0至4年年資人數百分率"), 
+                                LABEL_MAP.get("5至9年年資人數百分率"), 
+                                LABEL_MAP.get("10年年資或以上人數百分率")
+                            ],
                             '百分比': [
                                 row.get("0至4年年資人數百分率", 0),
                                 row.get("5至9年年資人數百分率", 0),
@@ -828,12 +843,12 @@ if school_df is not None and article_df is not None:
                         pie = base.mark_arc(outerRadius=120, innerRadius=50).encode(
                             color=alt.Color(field="年資", title="年資類別"),
                             order=alt.Order("百分比", sort="descending"), # 依百分比降序排列
-                            tooltip=["年資", alt.Tooltip("百分比", format=".1f")]
+                            tooltip=["年資", alt.Tooltip("百分比", format=".1f%")] # 提示框加 % 符號
                         )
                         
-                        # 4b. 加入文字標籤 (數字)
-                        text = base.mark_text(radius=100, fontSize=12).encode( # 設置半徑在圓環內
-                            text=alt.Text("百分比", format=".1f"), # 顯示百分比數字 (一位小數)
+                        # 4b. 加入文字標籤 (數字) (已修改：粗體、大字體、加 % 符號)
+                        text = base.mark_text(radius=100, fontSize=14, fontWeight='bold').encode( # 設置半徑在圓環內
+                            text=alt.Text("百分比", format=".1f%"), # 顯示百分比數字並加 % 符號
                             order=alt.Order("百分比", sort="descending"),
                             color=alt.value("white") # 確保文字在深色背景上可見
                         )
