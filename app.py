@@ -33,7 +33,8 @@ st.markdown("""
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 1em;
-        table-layout: fixed; /* 固定表格佈局 */
+        table-layout: auto; /* 允許瀏覽器自適應，但在流動版會保持對齊 */
+        min-width: 400px; /* 確保在手機上仍有最小寬度以保持對齊 */
     }
     .clean-table th, .clean-table td {
         padding: 8px 12px;
@@ -47,8 +48,15 @@ st.markdown("""
         border-bottom: 2px solid #ccc; /* 標題下雙分隔線 */
     }
     .clean-table td:nth-child(1) {
-        font-weight: bold; /* 讓 "一年級" 和 "二至六年級" 粗體顯示 */
+        font-weight: bold; /* 讓第一欄文字粗體顯示 */
         width: 35%; /* 確保第一欄寬度足夠 */
+    }
+    /* 班級結構表格的寬度優化 */
+    .clean-table.class-table td:nth-child(n+2), .clean-table.class-table th:nth-child(n+2) {
+        text-align: center;
+    }
+    .clean-table.class-table td:nth-child(1) {
+        width: 25%;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -628,8 +636,47 @@ if school_df is not None and article_df is not None:
                         grades_internal = ["小一", "小二", "小三", "小四", "小五", "小六", "總"]
                         last_year_data = [row.get(f"上學年{g}班數", 0) for g in grades_internal]
                         this_year_data = [row.get(f"本學年{g}班數", 0) for g in grades_internal]
-                        class_df = pd.DataFrame([last_year_data, this_year_data], columns=grades_display, index=["上學年班數", "本學年班數"])
-                        st.table(class_df)
+                        
+                        # --- [NEW] 使用 HTML 表格替換 st.table 以確保響應式對齊 ---
+                        class_table_html = f"""
+                        <table class="clean-table class-table">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>小一</th>
+                                    <th>小二</th>
+                                    <th>小三</th>
+                                    <th>小四</th>
+                                    <th>小五</th>
+                                    <th>小六</th>
+                                    <th>總數</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>**上學年班數**</td>
+                                    <td style="text-align: center;">{last_year_data[0]}</td>
+                                    <td style="text-align: center;">{last_year_data[1]}</td>
+                                    <td style="text-align: center;">{last_year_data[2]}</td>
+                                    <td style="text-align: center;">{last_year_data[3]}</td>
+                                    <td style="text-align: center;">{last_year_data[4]}</td>
+                                    <td style="text-align: center;">{last_year_data[5]}</td>
+                                    <td style="text-align: center;">**{last_year_data[6]}**</td>
+                                </tr>
+                                <tr>
+                                    <td>**本學年班數**</td>
+                                    <td style="text-align: center;">{this_year_data[0]}</td>
+                                    <td style="text-align: center;">{this_year_data[1]}</td>
+                                    <td style="text-align: center;">{this_year_data[2]}</td>
+                                    <td style="text-align: center;">{this_year_data[3]}</td>
+                                    <td style="text-align: center;">{this_year_data[4]}</td>
+                                    <td style="text-align: center;">{this_year_data[5]}</td>
+                                    <td style="text-align: center;">**{this_year_data[6]}**</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        """
+                        st.markdown(class_table_html, unsafe_allow_html=True)
 
                     # --- 動態 TABS ---
                     tab_index = 5
