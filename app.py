@@ -509,6 +509,7 @@ if school_df is not None and article_df is not None:
     # 創建一個容器來顯示結果，並在按鈕點擊時清空並重新執行篩選
     results_container = st.container()
 
+    # 🚨 將「搜尋學校」按鈕放在篩選器組件的下方
     if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
         
         mask = pd.Series(True, index=school_df.index)
@@ -967,3 +968,8 @@ if school_df is not None and article_df is not None:
                             display_info("網頁", row.get("學校網址"))
                         
                         # --- [END] TABS 結構 ---
+
+                # 🚨 新增：回到最頂按鈕
+                if st.button("⬆️ 回到最頂"):
+                    # 使用 st.rerun 模擬回到頂部的效果
+                    st.rerun()
