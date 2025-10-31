@@ -456,64 +456,14 @@ if school_df is not None and article_df is not None:
     # 呼叫側邊欄篩選器
     render_sidebar_filters(school_df) 
     
-    school_name_query = st.text_input(
-        "根據學校名稱搜尋", 
-        placeholder="請輸入學校名稱關鍵字...", 
-        key="school_name_search"
-    )
-    
-    with st.expander("根據課業安排篩選"):
-        assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
-        
-        # 🚨 警告：此處篩選仍使用數字比較邏輯，但由於資料已轉為純文字，這可能不再準確。
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options, key="g1_tests")
-        with c2:
-            selected_g1_exams = st.selectbox("一年級考試次數", assessment_options, key="g1_exams")
-        with c3:
-            selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options, key="g2_6_tests")
-        with c4:
-            selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options, key="g2_6_exams")
-
-        c5, c6 = st.columns(2)
-        with c5:
-            use_diverse_assessment = st.checkbox("小一上學期以多元化評估代替測考", key="diverse")
-        with c6:
-            has_tutorial_session = st.checkbox("下午設導修課 (教師指導家課)", key="tutorial")
-    
-    # --- [START] 師資按鈕篩選 UI (保持按鈕佈局) ---
-    with st.expander("根據師資等級搜尋"):
-        
-        st.markdown("**碩士/博士或以上學歷 (%)**")
-        col_master1, col_master2, col_master3 = st.columns(3)
-        with col_master1: style_filter_button("最少 5%", 5, 'master_filter')
-        with col_master2: style_filter_button("最少 15%", 15, 'master_filter')
-        with col_master3: style_filter_button("最少 25%", 25, 'master_filter')
-
-        st.markdown("**10年或以上年資 (%)**")
-        col_exp1, col_exp2, col_exp3 = st.columns(3)
-        with col_exp1: style_filter_button("最少 20%", 20, 'exp_filter')
-        with col_exp2: style_filter_button("最少 40%", 40, 'exp_filter')
-        with col_exp3: style_filter_button("最少 60%", 60, 'exp_filter')
-        
-        st.markdown("**特殊教育培訓 (%)**")
-        col_sen1, col_sen2, col_sen3 = st.columns(3)
-        with col_sen1: style_filter_button("最少 10%", 10, 'sen_filter')
-        with col_sen2: style_filter_button("最少 20%", 20, 'sen_filter')
-        with col_sen3: style_filter_button("最少 30%", 30, 'sen_filter')
-    # --- [END] 師資按鈕篩選 UI ---
-
-    st.write("") 
-    
     # 創建一個容器來顯示結果，並在按鈕點擊時清空並重新執行篩選
     results_container = st.container()
 
-    # 🚨 將「搜尋學校」按鈕放在篩選器組件的下方
+    # 🚨 將「搜尋學校」按鈕放在最上方
     if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
         
         mask = pd.Series(True, index=school_df.index)
-        query = school_name_query.strip()
+        query = st.session_state.school_name_search.strip() if 'school_name_search' in st.session_state else ""
         
         # --- 讀取 SIDEBAR 篩選器值並應用過濾 (保持不變) ---
         selected_region = st.session_state.get("region", [])
@@ -563,6 +513,13 @@ if school_df is not None and article_df is not None:
             elif selection == "3次": return mask & (school_df[column] == "3")
             return mask
             
+        selected_g1_tests = st.session_state.g1_tests if 'g1_tests' in st.session_state else "不限"
+        selected_g1_exams = st.session_state.g1_exams if 'g1_exams' in st.session_state else "不限"
+        selected_g2_6_tests = st.session_state.g2_6_tests if 'g2_6_tests' in st.session_state else "不限"
+        selected_g2_6_exams = st.session_state.g2_6_exams if 'g2_6_exams' in st.session_state else "不限"
+        use_diverse_assessment = st.session_state.diverse if 'diverse' in st.session_state else False
+        has_tutorial_session = st.session_state.tutorial if 'tutorial' in st.session_state else False
+        
         mask = apply_assessment_filter_text(mask, col_map["g1_tests"], selected_g1_tests)
         mask = apply_assessment_filter_text(mask, col_map["g1_exams"], selected_g1_exams)
         mask = apply_assessment_filter_text(mask, col_map["g2_6_tests"], selected_g2_6_tests)
@@ -575,6 +532,58 @@ if school_df is not None and article_df is not None:
         
         st.session_state.filtered_schools = school_df[mask]
 
+
+    # --- 篩選器組件 (在按鈕下方) ---
+    
+    school_name_query = st.text_input(
+        "根據學校名稱搜尋", 
+        placeholder="請輸入學校名稱關鍵字...", 
+        key="school_name_search"
+    )
+    
+    with st.expander("根據課業安排篩選"):
+        assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
+        
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.selectbox("一年級測驗次數", assessment_options, key="g1_tests")
+        with c2:
+            st.selectbox("一年級考試次數", assessment_options, key="g1_exams")
+        with c3:
+            st.selectbox("二至六年級測驗次數", assessment_options, key="g2_6_tests")
+        with c4:
+            st.selectbox("二至六年級考試次數", assessment_options, key="g2_6_exams")
+
+        c5, c6 = st.columns(2)
+        with c5:
+            st.checkbox("小一上學期以多元化評估代替測考", key="diverse")
+        with c6:
+            st.checkbox("下午設導修課 (教師指導家課)", key="tutorial")
+    
+    # --- [START] 師資按鈕篩選 UI (保持按鈕佈局) ---
+    with st.expander("根據師資等級搜尋"):
+        
+        st.markdown("**碩士/博士或以上學歷 (%)**")
+        col_master1, col_master2, col_master3 = st.columns(3)
+        with col_master1: style_filter_button("最少 5%", 5, 'master_filter')
+        with col_master2: style_filter_button("最少 15%", 15, 'master_filter')
+        with col_master3: style_filter_button("最少 25%", 25, 'master_filter')
+
+        st.markdown("**10年或以上年資 (%)**")
+        col_exp1, col_exp2, col_exp3 = st.columns(3)
+        with col_exp1: style_filter_button("最少 20%", 20, 'exp_filter')
+        with col_exp2: style_filter_button("最少 40%", 40, 'exp_filter')
+        with col_exp3: style_filter_button("最少 60%", 60, 'exp_filter')
+        
+        st.markdown("**特殊教育培訓 (%)**")
+        col_sen1, col_sen2, col_sen3 = st.columns(3)
+        with col_sen1: style_filter_button("最少 10%", 10, 'sen_filter')
+        with col_sen2: style_filter_button("最少 20%", 20, 'sen_filter')
+        with col_sen3: style_filter_button("最少 30%", 30, 'sen_filter')
+    # --- [END] 師資按鈕篩選 UI ---
+
+    st.write("") 
+    
     # --- 結果顯示區 (不論是否點擊按鈕，只要 state 中有結果就顯示) ---
     if not st.session_state.filtered_schools.empty:
         
@@ -969,7 +978,7 @@ if school_df is not None and article_df is not None:
                         
                         # --- [END] TABS 結構 ---
 
-                # 🚨 新增：回到最頂按鈕
+                # 🚨 新增：回到最頂按鈕 (在結果顯示區的底部)
                 if st.button("⬆️ 回到最頂"):
                     # 使用 st.rerun 模擬回到頂部的效果
                     st.rerun()
