@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import altair as alt # <-- 繪圖函式庫
+# Removed: import altair as alt # <-- 已移除 Altair 庫
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
@@ -94,6 +94,20 @@ st.markdown("""
     button[data-testid="baseButton-headerNoPadding"]:hover,
     button[data-testid="stSidebarCloseButton"]:hover {
         color: #3498db !important; /* 懸停時變為藍色 */
+    }
+    /* 新增：統一表格樣式，將數據欄置中 */
+    .info-table th, .info-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    .info-table td:nth-child(2) {
+        text-align: center;
+        font-weight: bold;
+    }
+    .info-table th {
+        background-color: #f2f2f2;
+        font-weight: 600;
     }
     </style>
 """, unsafe_allow_html=True)
