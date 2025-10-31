@@ -14,28 +14,32 @@ if 'search_mode' not in st.session_state:
 if 'filtered_schools' not in st.session_state:
     st.session_state.filtered_schools = pd.DataFrame()
 
+# 初始化按鈕狀態 for Highlighting
+if 'master_filter' not in st.session_state:
+    st.session_state.master_filter = 0
+if 'exp_filter' not in st.session_state:
+    st.session_state.exp_filter = 0
+if 'sen_filter' not in st.session_state:
+    st.session_state.sen_filter = 0
+
 # --- 載入與處理資料 ---
 @st.cache_data
 def load_data():
     try:
-        # --- [START] 修正 #1: 使用您最新的檔案名稱 ---
+        # 使用您最新的檔案名稱
         school_df = pd.read_csv("database_school_info.csv") 
         article_df = pd.read_csv("database_related_article.csv")
-        # --- [END] 修正 #1 ---
         
         school_df.columns = school_df.columns.str.strip()
         article_df.columns = article_df.columns.str.strip()
         
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
-        # --- [START] 修正 #2: 強制清理時間欄位 ---
-        # 定義時間欄位 (CC, CD, CE, CF)
+        # 強制清理時間欄位 (CC, CD, CE, CF)
         time_cols_to_clean = ["上課時間_", "放學時間", "午膳時間", "午膳結束時間"]
         for col in time_cols_to_clean:
             if col in school_df.columns:
-                # 強制轉為 string 並移除前後空格
                 school_df[col] = school_df[col].astype(str).str.strip()
-        # --- [END] 修正 #2 ---
 
         for col in school_df.select_dtypes(include=['object']).columns:
             if col not in time_cols_to_clean and school_df[col].dtype == 'object':
@@ -83,7 +87,7 @@ def load_data():
         st.error(f"處理資料時發生錯誤：{e}。請檢查您的 CSV 檔案格式是否正確。")
         return None, None
 
-# --- [START] 輔助函數 (更新) ---
+# --- 輔助函數 ---
 LABEL_MAP = { 
     "校監_校管會主席姓名": "校監", 
     "校長姓名": "校長",
@@ -115,20 +119,44 @@ LABEL_MAP = {
     "聯繫中學": "聯繫中學"
 }
 
-# 檢查資料是否有效 (不是 NaN, -, 或空字串)
 def is_valid_data(value):
     return pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']
+
+# 格式化按鈕的高亮樣式
+def style_button(label, value, filter_key):
+    is_selected = st.session_state[filter_key] == value
+    style = """
+        <style>
+        div.stButton > button {
+            background-color: %s;
+            color: %s;
+            border-radius: 5px;
+            border: 1px solid #1abc9c;
+            padding: 5px 10px;
+            margin: 2px;
+            transition: all 0.2s ease;
+            width: 100%%;
+        }
+        </style>
+        """ % ('#1abc9c' if is_selected else 'transparent', '#FFFFFF' if is_selected else '#1abc9c')
+    
+    st.markdown(style, unsafe_allow_html=True)
+    
+    if st.button(label, key=f"btn_{filter_key}_{value}"):
+        # 如果點擊的按鈕已經被選中，則取消選擇
+        if is_selected:
+            st.session_state[filter_key] = 0
+        else:
+            st.session_state[filter_key] = value
+        st.rerun()
 
 # 更新 display_info 函數以始終顯示標籤
 def display_info(label, value, is_fee=False):
     display_label = LABEL_MAP.get(label, label)
     display_value = "沒有" # 預設值
-    
-    # 判斷是否為需要格式化的時間欄位
     is_time_field = label in ["上課時間_", "放學時間", "午膳時間", "午膳結束時間"]
 
     if is_valid_data(value):
-        # --- Value exists ---
         val_str = str(value)
         if "網頁" in label and "http" in val_str:
             st.markdown(f"**{display_label}：** [{value}]({value})")
@@ -139,38 +167,33 @@ def display_info(label, value, is_fee=False):
             if isinstance(value, (int, float)) and value > 0:
                 display_value = f"${int(value)}"
             elif isinstance(value, (int, float)) and value == 0:
-                display_value = "$0" # 費用應顯示 $0
+                display_value = "$0"
             else:
                 display_value = val_str
         elif is_time_field and ':' in val_str:
-            # --- NEW TIME FORMATTING LOGIC ---
+            # 時間格式化邏輯
             try:
                 parts = val_str.split(':')
                 if len(parts) >= 2:
-                    # 讀取小時和分鐘 (第一個和第二個冒號之間的數字)
                     display_value = f"{parts[0]}:{parts[1]}"
                 else:
                     display_value = val_str
             except:
                 display_value = val_str
-            # --- END NEW TIME FORMATTING LOGIC ---
         else:
             display_value = val_str
     
-    # 處理空的費用欄位
     elif is_fee:
         if label in ["學費", "堂費", "家長教師會費"]:
-             display_value = "$0" # 數字費用預設為 $0
+             display_value = "$0"
         else:
-             display_value = "沒有" # 文字費用預設為 "沒有"
+             display_value = "沒有"
     
-    # 對於非費用欄位，如果 value 無效且 label 不是 "關聯學校" (有特殊處理)，則顯示 "沒有"
     elif label == "關聯學校":
         st.markdown(f"**{display_label}：** {display_value}")
         return
 
     st.markdown(f"**{display_label}：** {display_value}")
-# --- [END] 輔助函數 (更新) ---
 
 school_df, article_df = load_data()
 
@@ -228,14 +251,27 @@ if school_df is not None and article_df is not None:
             with c6:
                 has_tutorial_session = st.checkbox("下午設導修課 (教師指導家課)", key="tutorial")
         
-        with st.expander("根據師資篩選"):
-            tc1, tc2, tc3 = st.columns(3)
-            with tc1:
-                selected_masters_pct = st.slider("碩士/博士或以上學歷 (最少%)", 0, 100, 0, key="masters_pct")
-            with tc2:
-                selected_exp_pct = st.slider("10年或以上年資 (最少%)", 0, 100, 0, key="exp_pct")
-            with tc3:
-                selected_sen_pct = st.slider("特殊教育培訓 (最少%)", 0, 100, 0, key="sen_pct")
+        # --- [START] 師資按鈕篩選 UI ---
+        with st.expander("根據師資等級搜尋"):
+            
+            st.markdown("**碩士/博士或以上學歷 (%)**")
+            col_master1, col_master2, col_master3 = st.columns(3)
+            with col_master1: style_button("最少 5%", 5, 'master_filter')
+            with col_master2: style_button("最少 15%", 15, 'master_filter')
+            with col_master3: style_button("最少 25%", 25, 'master_filter')
+
+            st.markdown("**10年或以上年資 (%)**")
+            col_exp1, col_exp2, col_exp3 = st.columns(3)
+            with col_exp1: style_button("最少 20%", 20, 'exp_filter')
+            with col_exp2: style_button("最少 40%", 40, 'exp_filter')
+            with col_exp3: style_button("最少 60%", 60, 'exp_filter')
+            
+            st.markdown("**特殊教育培訓 (%)**")
+            col_sen1, col_sen2, col_sen3 = st.columns(3)
+            with col_sen1: style_button("最少 10%", 10, 'sen_filter')
+            with col_sen2: style_button("最少 20%", 20, 'sen_filter')
+            with col_sen3: style_button("最少 30%", 30, 'sen_filter')
+        # --- [END] 師資按鈕篩選 UI ---
 
         st.write("") 
         if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
@@ -273,12 +309,14 @@ if school_df is not None and article_df is not None:
             if use_diverse_assessment: mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
             if has_tutorial_session: mask &= (school_df[col_map["tutorial_session"]] == "有")
             
-            if selected_masters_pct > 0:
-                mask &= (school_df["碩士_博士或以上人數百分率"] >= selected_masters_pct)
-            if selected_exp_pct > 0:
-                mask &= (school_df["10年年資或以上人數百分率"] >= selected_exp_pct)
-            if selected_sen_pct > 0:
-                mask &= (school_df["特殊教育培訓人數百分率"] >= selected_sen_pct)
+            # --- [START] 師資按鈕篩選邏輯 ---
+            if st.session_state.master_filter > 0:
+                mask &= (school_df["碩士_博士或以上人數百分率"] >= st.session_state.master_filter)
+            if st.session_state.exp_filter > 0:
+                mask &= (school_df["10年年資或以上人數百分率"] >= st.session_state.exp_filter)
+            if st.session_state.sen_filter > 0:
+                mask &= (school_df["特殊教育培訓人數百分率"] >= st.session_state.sen_filter)
+            # --- [END] 師資按鈕篩選邏輯 ---
 
             st.session_state.filtered_schools = school_df[mask]
             st.rerun()
@@ -295,12 +333,12 @@ if school_df is not None and article_df is not None:
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            # 欄位定義
+            # 欄位定義 (略)
             fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
             teacher_stat_cols = [
                 "上學年已接受師資培训人數百分率", "上學年學士人數百分率", "上學年碩士_博士或以上人數百分率", 
-                "上學年特殊教育培訓人數百分率", "上學年0至4年年資人數百分率", "上學年5至9年年資人數百分率", 
-                "上學年10年年資或以上人數百分率", "上學年核准編制教師職位數目", "上學年教師總人數", 
+                "上學年特殊教育培訓人數百分率", "上學年0至4年年資人數百分率", "5至9年年資人數百分率", 
+                "10年年資或以上人數百分率", "上學年核准編制教師職位數目", "上學年教師總人數", 
                 "教師專業培訓及發展"
             ]
             other_categories = {
@@ -343,10 +381,9 @@ if school_df is not None and article_df is not None:
                     
                     tabs = st.tabs(tab_list)
 
-                    # --- [START] TAB 1: 基本資料 (完全依照 DOCX 格式) ---
+                    # --- [START] TAB 1: 基本資料 ---
                     with tabs[0]:
                         st.subheader("學校基本資料")
-                        # 佈局基於 source 2
                         c1, c2 = st.columns(2)
                         with c1: display_info("區域", row.get("區域"))
                         with c2: display_info("小一學校網", row.get("小一學校網"))
@@ -366,7 +403,6 @@ if school_df is not None and article_df is not None:
                         c9, c10 = st.columns(2)
                         with c9: display_info("教學語言", row.get("教學語言"))
                         
-                        # --- [START] 關聯學校邏輯 (已修改) ---
                         with c10: 
                             related_dragon_val = row.get("一條龍中學")
                             related_feeder_val = row.get("直屬中學")
@@ -377,19 +413,17 @@ if school_df is not None and article_df is not None:
                             has_linked = is_valid_data(related_linked_val)
 
                             if not has_dragon and not has_feeder and not has_linked:
-                                display_info("關聯學校", None) # 這將顯示 "關聯學校：沒有"
+                                display_info("關聯學校", None)
                             else:
-                                st.markdown("**關聯學校：**") # 僅顯示標題
+                                st.markdown("**關聯學校：**")
                                 if has_dragon:
-                                    # 使用 display_info 確保格式一致
                                     display_info("一條龍中學", related_dragon_val)
                                 if has_feeder:
                                     display_info("直屬中學", related_feeder_val)
                                 if has_linked:
                                     display_info("聯繫中學", related_linked_val)
-                        # --- [END] 關聯學校邏輯 ---
 
-                        c11, c12 = st.columns(2) # 校長/校監行
+                        c11, c12 = st.columns(2)
                         with c11:
                             principal_name = str(row.get("校長姓名", "")).strip()
                             principal_title = str(row.get("校長稱謂", "")).strip()
@@ -407,7 +441,7 @@ if school_df is not None and article_df is not None:
 
                         st.divider()
                         st.subheader("上學及放學安排")
-                        # 佈局基於 source 4
+                        
                         c_transport1, c_transport2 = st.columns(2)
                         with c_transport1:
                             has_bus, has_van = row.get("校車") == "有", row.get("保姆車") == "有"
@@ -416,26 +450,24 @@ if school_df is not None and article_df is not None:
                             elif has_bus: transport_status = "有校車"
                             elif has_van: transport_status = "有保姆車"
                             display_info("校車或保姆車", transport_status)
-                        # c_transport2 保持空白，如 DOCX 所示
                         
                         c15, c16 = st.columns(2)
-                        with c15: display_info("上課時間_", row.get("上課時間_")) # <-- 顯示 "一般上學時間" (CC)
-                        with c16: display_info("放學時間", row.get("放學時間")) # <-- 顯示 "一般放學時間" (CD)
+                        with c15: display_info("上課時間_", row.get("上課時間_"))
+                        with c16: display_info("放學時間", row.get("放學時間"))
 
                         st.divider()
                         st.subheader("午膳安排")
-                        # 佈局基於 source 6
+                        
                         c_lunch1, c_lunch2 = st.columns(2)
                         with c_lunch1: display_info("午膳安排", row.get("午膳安排"))
-                        # c_lunch2 保持空白，如 DOCX 所示
-
+                        
                         c17, c18 = st.columns(2)
-                        with c17: display_info("午膳時間", row.get("午膳時間")) # <-- 顯示 "午膳開始時間" (CE)
+                        with c17: display_info("午膳時間", row.get("午膳時間"))
                         with c18: display_info("午膳結束時間", row.get("午膳結束時間"))
 
                         st.divider()
                         st.subheader("費用")
-                        # 佈局基於 source 8 (單欄列表)
+                        
                         for col_key in fee_cols:
                             display_info(col_key, row.get(col_key), is_fee=True)
                     # --- [END] TAB 1 ---
@@ -463,7 +495,7 @@ if school_df is not None and article_df is not None:
                     with tabs[2]:
                         st.subheader("師資概況")
                         sub_cols = st.columns(3)
-                        stat_cols_to_display = [col for col in teacher_stat_cols if col != "教師專業培訓及發展"] # 排除長文字
+                        stat_cols_to_display = [col for col in teacher_stat_cols if col != "教師專業培訓及發展"]
                         for i, col_name in enumerate(stat_cols_to_display):
                             with sub_cols[i % 3]:
                                 display_info(col_name, row.get(col_name))
@@ -505,10 +537,8 @@ if school_df is not None and article_df is not None:
                             
                             st.divider()
                             st.subheader("其他補充資料")
-                            # 建立一個所有已被顯示的欄位 set
-                            displayed_cols = set()
-                            for cols_list in [fee_cols, teacher_stat_cols, other_categories["辦學理念"], facility_cols_counts, facility_cols_text, assessment_display_map.values(), ["區域", "小一學校網", "資助類型", "學生性別", "創校年份", "宗教", "教學語言", "校車", "保姆車", "辦學團體", "校訓", "校長姓名", "校長稱謂", "校監_校管會主席姓名", "校監_校管會主席稱謂", "家長教師會", "舊生會_校友會", "一條龍中學", "直屬中學", "聯繫中學", "上課時間", "上課時間_", "放學時間", "午膳安排", "午膳時間", "午膳結束時間", "學校名稱", "學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址", "學校佔地面積"]]:
-                                displayed_cols.update(cols_list)
+                            
+                            displayed_cols = set(fee_cols + teacher_stat_cols + list(other_categories["辦學理念"]) + facility_cols_counts + facility_cols_text + list(assessment_display_map.values()) + ["區域", "小一學校網", "資助類型", "學生性別", "創校年份", "宗教", "教學語言", "校車", "保姆車", "辦學團體", "校訓", "校長姓名", "校長稱謂", "校監_校管會主席姓名", "校監_校管會主席稱謂", "家長教師會", "舊生會_校友會", "一條龍中學", "直屬中學", "聯繫中學", "上課時間", "上課時間_", "放學時間", "午膳安排", "午膳時間", "午膳結束時間", "學校名稱", "學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址", "學校佔地面積"])
                             for i in range(1, 7):
                                 displayed_cols.add(f"上學年小{i}班數")
                                 displayed_cols.add(f"本學年小{i}班數")
