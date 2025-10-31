@@ -1,12 +1,11 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import altair as alt # 導入 Altair 繪圖庫
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示 (移除箭頭/陰影) ---
+# --- 注入 CSS 實現 Tab 滾動提示及表格樣式 ---
 st.markdown("""
     <style>
     /* 1. 基本容器設置 */
@@ -29,7 +28,7 @@ st.markdown("""
         display: none;
     }
     
-    /* 3. HTML 表格基本樣式 (通用於所有clean-table) */
+    /* 3. HTML 表格基本樣式 (通用於所有clean-table，解決響應式對齊問題) */
     .clean-table {
         width: 100%;
         border-collapse: collapse;
@@ -40,7 +39,7 @@ st.markdown("""
     .clean-table th, .clean-table td {
         padding: 8px 12px;
         text-align: left;
-        border: none; /* 移除所有邊框 */
+        border: none; 
         border-bottom: 1px solid #eee; /* 增加行分隔線 */
         vertical-align: top;
     }
@@ -93,10 +92,6 @@ if 'exp_filter' not in st.session_state:
 if 'sen_filter' not in st.session_state:
     st.session_state.sen_filter = 0
 
-# --- [START] 修正 #1: 在全域定義 fee_cols ---
-fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
-# --- [END] 修正 #1 ---
-
 # --- 載入與處理資料 ---
 @st.cache_data
 def load_data():
@@ -118,31 +113,16 @@ def load_data():
                 school_df[col] = school_df[col].astype(str).str.strip()
 
         for col in school_df.select_dtypes(include=['object']).columns:
-            if col not in time_cols_to_clean and col not in fee_cols and school_df[col].dtype == 'object': # 費用欄位不在此處清理
+            if col not in time_cols_to_clean and school_df[col].dtype == 'object':
                 school_df[col] = school_df[col].str.replace('<br>', '\n', regex=False).str.strip()
         
         if '學校名稱' in school_df.columns:
             school_df['學校名稱'] = school_df['學校名稱'].str.replace(r'\s+', ' ', regex=True).str.strip()
 
-        # --- [START] 修正 #2: 學費欄位只清理空白，不去除文字 ---
-        # 由於您要求保留學費中的文字，我們不能使用 pd.to_numeric
-        for col in fee_cols:
+        fee_columns = ["學費", "堂費", "家長教師會費"]
+        for col in fee_columns:
             if col in school_df.columns:
-                # 將 NaN 轉換為空字串，然後執行 strip()
-                school_df[col] = school_df[col].astype(str).replace('nan', '', regex=False).str.strip()
-
-        # 我們仍然需要數字版本用於篩選器，但這會在篩選邏輯中進行處理
-        # 為了保持原有的篩選邏輯，我們創建隱藏的數字欄位 (此處不變，但數字提取邏輯需要更精確)
-        
-        # 重設 fees 欄位為數字用於篩選器，但要提取第一個數字串
-        fee_for_filter_cols = ["學費", "堂費", "家長教師會費"]
-        for col in fee_for_filter_cols:
-             if col in school_df.columns:
-                # 提取第一個數字串（包括數字和小數點），忽略後面的文字
-                school_df[col + '_num'] = school_df[col].astype(str).str.extract(r'(\d[\d\.]*)', expand=False)
-                school_df[col + '_num'] = pd.to_numeric(school_df[col + '_num'], errors='coerce').fillna(0)
-        # --- [END] 修正 #2 ---
-
+                school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
         teacher_stat_cols = [
             "已接受師資培训人數百分率", "學士人數百分率", 
@@ -151,15 +131,9 @@ def load_data():
             "10年年資或以上人數百分率"
         ]
         
-        # 師資數據的清理：確保即使 Pandas 誤判為 float，也能轉回 string 進行清理
         for col in teacher_stat_cols:
             if col in school_df.columns:
-                # 增強清理：將欄位值強制轉為 string，移除 '%' 和其他非數字/小數點字符
-                # 關鍵修正: fillna(0) 確保所有 NaN 都變成 0，避免在圖表計算中出現 TypeError
-                school_df[col] = pd.to_numeric(
-                    school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), 
-                    errors='coerce'
-                ).fillna(0)
+                school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
         assessment_cols = ["全年全科測驗次數_一年級", "全年全科考試次數_一年級", "全年全科測驗次數_二至六年級", "全年全科考試次數_二至六年級"]
         for col in assessment_cols:
@@ -272,20 +246,15 @@ def display_info(label, value, is_fee=False):
         if "網頁" in label and "http" in val_str:
             st.markdown(f"**{display_label}：** [{value}]({value})")
             return 
-        elif "(%)" in display_label:
-            # 修正百分比顯示邏輯：確保數字有效才顯示 %
-            if isinstance(value, (int, float)):
-                 display_value = f"{int(value)}%"
-            else:
-                 display_value = val_str # 如果是字串，直接顯示
+        elif "(%)" in display_label and isinstance(value, (int, float)):
+            display_value = f"{int(value)}%"
         elif is_fee:
-            # --- [START] 修正費用顯示邏輯 ---
-            # 由於費用欄位在 load_data 中未被轉換，這裡可以直接顯示完整的文字內容
-            if is_valid_data(value):
-                display_value = val_str.strip()
+            if isinstance(value, (int, float)) and value > 0:
+                display_value = f"${int(value)}"
+            elif isinstance(value, (int, float)) and value == 0:
+                display_value = "$0"
             else:
-                 display_value = "沒有"
-            # --- [END] 修正費用顯示邏輯 ---
+                display_value = val_str
         elif is_time_field and ':' in val_str:
             # 時間格式化邏輯
             try:
@@ -300,28 +269,16 @@ def display_info(label, value, is_fee=False):
             display_value = val_str
     
     elif is_fee:
-        # 費用為空或無效時，顯示「沒有」
-        display_value = "沒有"
+        if label in ["學費", "堂費", "家長教師會費"]:
+             display_value = "$0"
+        else:
+             display_value = "沒有"
     
     elif label == "關聯學校":
         st.markdown(f"**{display_label}：** {display_value}")
         return
 
     st.markdown(f"**{display_label}：** {display_value}")
-
-# Function to create Pie Chart using Altair
-def create_pie_chart(df, title):
-    import altair as alt
-    # 如果數據總和不到 100%，會自動填補空白
-    chart = alt.Chart(df).mark_arc(outerRadius=120, innerRadius=50).encode(
-        theta=alt.Theta("Percentage", stack=True),
-        color=alt.Color("Category", legend=alt.Legend(title="分類")),
-        order=alt.Order("Percentage", sort="descending"),
-        tooltip=["Category", alt.Tooltip("Percentage", format=".1f") + "%"]
-    ).properties(
-        title=title
-    ).interactive()
-    return chart
 # --- [END] 輔助函數 ---
 
 school_df, article_df = load_data()
@@ -440,7 +397,7 @@ if school_df is not None and article_df is not None:
             if use_diverse_assessment: mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
             if has_tutorial_session: mask &= (school_df[col_map["tutorial_session"]] == "有")
             
-            # 師資按鈕篩選邏輯 (使用數字版本進行篩選)
+            # 師資按鈕篩選邏輯
             if st.session_state.master_filter > 0:
                 mask &= (school_df["碩士_博士或以上人數百分率"] >= st.session_state.master_filter)
             if st.session_state.exp_filter > 0:
@@ -465,7 +422,7 @@ if school_df is not None and article_df is not None:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
             # 欄位定義 (保持不變)
-            fee_cols_display = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
+            fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
             teacher_stat_cols = [
                 "上學年已接受師資培训人數百分率", "上學年學士人數百分率", "上學年碩士_博士或以上人數百分率", 
                 "上學年特殊教育培訓人數百分率", "上學年0至4年年資人數百分率", "5至9年年資人數百分率", 
@@ -512,7 +469,7 @@ if school_df is not None and article_df is not None:
 
                     tabs = st.tabs(tab_list)
 
-                    # --- TAB 1: 基本資料 ---
+                    # --- TAB 1: 基本資料 (保持不變) ---
                     with tabs[0]:
                         st.subheader("學校基本資料")
                         # 佈局基於 DOCX 格式
@@ -601,7 +558,7 @@ if school_df is not None and article_df is not None:
                         st.divider()
                         st.subheader("費用")
                         
-                        for col_key in fee_cols_display:
+                        for col_key in fee_cols:
                             display_info(col_key, row.get(col_key), is_fee=True)
                         
                     # --- TAB 2: 學業評估與安排 ---
@@ -640,7 +597,7 @@ if school_df is not None and article_df is not None:
 
                         st.markdown("##### 課業及教學政策")
                         
-                        # 政策與教學模式 - HTML 列表 (解決錯位問題，單欄堆疊)
+                        # 政策與教學模式 - HTML Table (已修正為最終優化列表)
                         
                         # 1. 定義數據和標籤的列表 (確保順序與 DOCX 格式一致)
                         all_policy_data = [
@@ -659,8 +616,7 @@ if school_df is not None and article_df is not None:
                         
                         for field_key, label in all_policy_data:
                             # 獲取值，並將內部的 \n 轉換為 <br>
-                            raw_value = row.get(col_map[field_key])
-                            value = str(raw_value).replace('\n', '<br>') if is_valid_data(raw_value) else "沒有"
+                            value = str(row.get(col_map[field_key], "沒有")).replace('\n', '<br>')
                             
                             # 使用 CSS class 模擬 Key-Value 列表
                             policy_list_html += f"""
@@ -671,82 +627,9 @@ if school_df is not None and article_df is not None:
                         
                         st.markdown(policy_list_html, unsafe_allow_html=True)
                             
-                    # --- TAB 3: 師資概況 ---
+                    # --- TAB 3: 師資概況 (保持不變) ---
                     with tabs[2]:
                         st.subheader("師資概況")
-                        
-                        # 1. 教師團隊數字 (Numerical Stats)
-                        st.markdown("##### 教師團隊數字")
-                        c_num1, c_num2 = st.columns(2)
-                        with c_num1:
-                            display_info("上學年核准編制教師職位數目", row.get("上學年核准編制教師職位數目"))
-                        with c_num2:
-                            display_info("上學年教師總人數", row.get("上學年教師總人數"))
-
-                        st.divider()
-
-                        # 2. 教師團隊學歷 & 年資 (Pie Charts)
-                        
-                        # 獲取並確保數據為有效數字
-                        master_pct = row.get("碩士_博士或以上人數百分率", 0)
-                        bachelor_pct = row.get("學士人數百分率", 0)
-                        y0_4_pct = row.get("0至4年年資人數百分率", 0)
-                        y5_9_pct = row.get("5至9年年資人數百分率", 0)
-                        y10_pct = row.get("10年年資或以上人數百分率", 0)
-                        
-                        # 計算學歷其他/缺失百分比
-                        calculated_sum_qualification = master_pct + bachelor_pct
-                        other_qualification_pct = max(0, 100 - calculated_sum_qualification)
-                        
-                        data_qualification = {
-                            "Category": ["碩士/博士", "學士", "其他/缺失"],
-                            "Percentage": [
-                                master_pct, 
-                                bachelor_pct, 
-                                other_qualification_pct
-                            ]
-                        }
-                        df_qualification = pd.DataFrame(data_qualification)
-                        df_qualification = df_qualification[df_qualification['Percentage'] > 0]
-                        
-                        # 計算年資其他/缺失百分比
-                        calculated_sum_experience = y0_4_pct + y5_9_pct + y10_pct
-                        other_experience_pct = max(0, 100 - calculated_sum_experience)
-
-                        data_experience = {
-                            "Category": ["0-4年年資", "5-9年年資", "10年或以上年資", "其他/缺失"],
-                            "Percentage": [
-                                y0_4_pct, 
-                                y5_9_pct, 
-                                y10_pct,
-                                other_experience_pct
-                            ]
-                        }
-                        df_experience = pd.DataFrame(data_experience)
-                        df_experience = df_experience[df_experience['Percentage'] > 0]
-                        
-                        # Display Charts Side-by-Side
-                        c_chart1, c_chart2 = st.columns(2)
-                        
-                        # 只有在數據有效時才嘗試繪圖
-                        if not df_qualification.empty and df_qualification['Percentage'].sum() > 0:
-                            with c_chart1:
-                                st.altair_chart(create_pie_chart(df_qualification, "學歷分佈"), use_container_width=True)
-                        else:
-                            with c_chart1:
-                                st.info("學歷分佈數據不足。")
-                                
-                        if not df_experience.empty and df_experience['Percentage'].sum() > 0:
-                            with c_chart2:
-                                st.altair_chart(create_pie_chart(df_experience, "年資分佈"), use_container_width=True)
-                        else:
-                            with c_chart2:
-                                st.info("年資分佈數據不足。")
-                        
-                        st.divider()
-                        
-                        # 3. 詳細百分比列表 (文字顯示)
-                        st.markdown("##### 詳細數據與培訓")
                         sub_cols = st.columns(3)
                         stat_cols_to_display = [col for col in teacher_stat_cols if col != "教師專業培訓及發展"]
                         for i, col_name in enumerate(stat_cols_to_display):
@@ -756,12 +639,12 @@ if school_df is not None and article_df is not None:
                         st.divider()
                         display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
 
-                    # --- TAB 4: 學校設施 ---
+                    # --- TAB 4: 學校設施 (保持不變) ---
                     with tabs[3]:
                         st.subheader("設施數量")
                         c1, c2, c3, c4 = st.columns(4)
                         with c1: display_info("課室數目", row.get("課室數目"))
-                        with c2: display_info("禮堂數目", row.get("禮堂數目"))
+                        with c2: display_info("禮堂數目", row.get("禮室數目"))
                         with c3: display_info("操場數目", row.get("操場數目"))
                         with c4: display_info("圖書館數目", row.get("圖書館數目"))
                         
