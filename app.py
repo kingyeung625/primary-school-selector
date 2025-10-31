@@ -5,6 +5,48 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
+# --- 注入 CSS 實現 Tab 滾動陰影提示 ---
+st.markdown("""
+    <style>
+    /* 選擇 Streamlit Tab 欄的容器，通常是 Div 包含 class 'stTabs' */
+    div[data-testid="stTabs"] {
+        /* 使用絕對定位的偽元素創建陰影 */
+        position: relative;
+        overflow-x: auto; /* 確保內容可以滾動 */
+        padding-bottom: 5px; /* 留出空間防止內容被陰影遮擋 */
+    }
+
+    /* 隱藏預設的滾動條，讓畫面更乾淨 */
+    div[data-testid="stTabs"] > div:first-child {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+    }
+    div[data-testid="stTabs"] > div:first-child::-webkit-scrollbar {
+        display: none; /* Chrome, Safari and Opera */
+    }
+
+    /* 創建右側陰影效果 - 提示內容在右邊 */
+    div[data-testid="stTabs"]::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        height: 100%;
+        width: 30px; /* 陰影寬度 */
+        /* 使用漸變色實現陰影效果，從背景色過渡到透明 */
+        background: linear-gradient(to left, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);
+        pointer-events: none; /* 讓陰影不影響點擊事件 */
+        z-index: 10;
+    }
+
+    /* 如果你需要左側陰影效果，可以添加類似的 CSS 規則 */
+    /* 註：Streamlit 的 Tab 容器比較難精確監聽滾動事件來動態顯示/隱藏陰影，
+       因此這裡使用一個常駐的右側陰影來提供提示 */
+
+    </style>
+""", unsafe_allow_html=True)
+# --- 注入 CSS 結束 ---
+
 # --- 主標題 ---
 st.title("香港小學選校篩選器")
 
@@ -14,7 +56,7 @@ if 'search_mode' not in st.session_state:
 if 'filtered_schools' not in st.session_state:
     st.session_state.filtered_schools = pd.DataFrame()
 
-# 初始化篩選器按鈕狀態 (保留狀態以防用戶切換回來)
+# 初始化篩選器按鈕狀態 (Filter buttons)
 if 'master_filter' not in st.session_state:
     st.session_state.master_filter = 0
 if 'exp_filter' not in st.session_state:
@@ -369,9 +411,6 @@ if school_df is not None and article_df is not None:
                 "分班安排": "分班安排"
             }
             
-            # --- 學校詳細資料頁面的分類列表 ---
-            DETAIL_VIEWS = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構", "聯絡資料"]
-
             for index, row in filtered_schools.iterrows():
                 # 檢查是否有辦學理念數據
                 has_mission_data = any(is_valid_data(row.get(col)) for col in other_categories["辦學理念"])
@@ -543,7 +582,7 @@ if school_df is not None and article_df is not None:
                         class_df = pd.DataFrame([last_year_data, this_year_data], columns=grades_display, index=["上學年班數", "本學年班數"])
                         st.table(class_df)
 
-                    # --- 動態 TABS (處理辦學理念和補充資料) ---
+                    # --- 動態 TABS ---
                     tab_index = 5
                     if has_mission_data:
                         with tabs[tab_index]:
