@@ -5,47 +5,114 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動陰影提示 ---
+# --- 注入 CSS 和 JavaScript 實現滾動箭頭提示 ---
+# 這是較為複雜的 CSS/JS 注入，用於在 Streamlit 框架中實現滾動監聽和視覺提示。
 st.markdown("""
     <style>
-    /* 選擇 Streamlit Tab 欄的容器，通常是 Div 包含 class 'stTabs' */
+    /* 1. 基本容器設置 */
     div[data-testid="stTabs"] {
-        /* 使用絕對定位的偽元素創建陰影 */
         position: relative;
-        overflow-x: auto; /* 確保內容可以滾動 */
-        padding-bottom: 5px; /* 留出空間防止內容被陰影遮擋 */
-    }
-
-    /* 隱藏預設的滾動條，讓畫面更乾淨 */
-    div[data-testid="stTabs"] > div:first-child {
-        -ms-overflow-style: none;  /* IE and Edge */
-        scrollbar-width: none;  /* Firefox */
+        /* 隱藏預設滾動條 */
+        -ms-overflow-style: none;
+        scrollbar-width: none;
     }
     div[data-testid="stTabs"] > div:first-child::-webkit-scrollbar {
-        display: none; /* Chrome, Safari and Opera */
+        display: none;
     }
 
-    /* 創建右側陰影效果 - 提示內容在右邊 */
+    /* 2. 創建箭頭偽元素 */
+    /* 使用 ::before 創建左箭頭 (<<) */
+    div[data-testid="stTabs"]::before {
+        content: '<<';
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        padding-left: 5px;
+        color: #1abc9c; /* 箭頭顏色 */
+        background: linear-gradient(to right, rgba(255, 255, 255, 1) 50%, rgba(255, 255, 255, 0) 100%);
+        pointer-events: none;
+        z-index: 100;
+        opacity: 0; /* 預設隱藏 */
+        transition: opacity 0.3s ease;
+    }
+
+    /* 使用 ::after 創建右箭頭 (>>) */
     div[data-testid="stTabs"]::after {
-        content: '';
+        content: '>>';
         position: absolute;
         top: 0;
         right: 0;
         height: 100%;
-        width: 30px; /* 陰影寬度 */
-        /* 使用漸變色實現陰影效果，從背景色過渡到透明 */
-        background: linear-gradient(to left, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);
-        pointer-events: none; /* 讓陰影不影響點擊事件 */
-        z-index: 10;
+        display: flex;
+        align-items: center;
+        padding-right: 5px;
+        color: #1abc9c; /* 箭頭顏色 */
+        background: linear-gradient(to left, rgba(255, 255, 255, 1) 50%, rgba(255, 255, 255, 0) 100%);
+        pointer-events: none;
+        z-index: 100;
+        opacity: 1; /* 預設顯示 */
+        transition: opacity 0.3s ease;
     }
 
-    /* 如果你需要左側陰影效果，可以添加類似的 CSS 規則 */
-    /* 註：Streamlit 的 Tab 容器比較難精確監聽滾動事件來動態顯示/隱藏陰影，
-       因此這裡使用一個常駐的右側陰影來提供提示 */
+    /* 3. 滾動狀態類名 (由 JavaScript 控制) */
+    .show-left::before {
+        opacity: 1 !important;
+    }
+    .hide-right::after {
+        opacity: 0 !important;
+    }
 
     </style>
 """, unsafe_allow_html=True)
-# --- 注入 CSS 結束 ---
+
+# --- 注入 JavaScript 實現滾動監聽 ---
+st.markdown("""
+    <script>
+    function setupTabScrollListener() {
+        const tabsContainer = document.querySelector('div[data-testid="stTabs"]');
+        if (!tabsContainer) return;
+
+        // 實際滾動的元素是第一個子元素
+        const scrollElement = tabsContainer.querySelector('div:first-child');
+        if (!scrollElement) return;
+
+        function updateShadows() {
+            const maxScrollLeft = scrollElement.scrollWidth - scrollElement.clientWidth;
+            const currentScroll = scrollElement.scrollLeft;
+
+            // 顯示/隱藏左箭頭 (<<)
+            if (currentScroll > 5) { // 滾動超過 5px，顯示左箭頭
+                tabsContainer.classList.add('show-left');
+            } else {
+                tabsContainer.classList.remove('show-left');
+            }
+
+            // 顯示/隱藏右箭頭 (>>)
+            if (maxScrollLeft - currentScroll > 5) { // 離最右邊超過 5px，顯示右箭頭
+                tabsContainer.classList.remove('hide-right');
+            } else {
+                tabsContainer.classList.add('hide-right');
+            }
+        }
+
+        // 監聽滾動事件
+        scrollElement.addEventListener('scroll', updateShadows);
+        
+        // 初始檢查 (必須延遲，因為 Streamlit 可能尚未完成渲染)
+        setTimeout(updateShadows, 500);
+        
+        // 應對視窗大小改變或內容大小改變
+        window.addEventListener('resize', updateShadows);
+    }
+    
+    // 延遲執行，確保 Streamlit 元素已經存在
+    setTimeout(setupTabScrollListener, 1000); 
+    </script>
+""", unsafe_allow_html=True)
+# --- JavaScript 注入結束 ---
 
 # --- 主標題 ---
 st.title("香港小學選校篩選器")
@@ -68,7 +135,7 @@ if 'sen_filter' not in st.session_state:
 @st.cache_data
 def load_data():
     try:
-        # 使用您最新的檔案名稱
+        # 修正檔案名稱: 使用您最新的檔案名稱
         school_df = pd.read_csv("database_school_info.csv") 
         article_df = pd.read_csv("database_related_article.csv")
         
