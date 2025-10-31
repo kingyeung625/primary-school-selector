@@ -5,7 +5,7 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示 (強烈陰影版) ---
+# --- 注入 CSS 實現 Tab 滾動提示 (強烈箭頭版) ---
 st.markdown("""
     <style>
     /* 1. 基本容器設置 */
@@ -22,37 +22,30 @@ st.markdown("""
         display: none;
     }
 
-    /* 2. 移除左側陰影（靜態陰影通常不好看） */
-    div[data-testid="stTabs"]::before {
-        content: '';
-        display: none; 
-    }
-
-    /* 3. 創建右側強烈陰影 (提示可滾動) */
+    /* 2. 創建右側箭頭提示 (>> 符號) */
     div[data-testid="stTabs"]::after {
-        content: '';
+        content: '>>'; /* <-- 修正：確保內容是 >> */
         position: absolute;
         top: 0;
         right: 0;
         height: 100%;
-        width: 40px; /* 加寬陰影區 */
+        width: 35px; /* 提示區寬度 */
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 5px;
+        font-weight: bold;
+        font-size: 1.2em; /* 讓箭頭更明顯 */
+        color: #1abc9c; /* 顏色與按鈕風格一致 */
         
-        /* 結合：1. 更強烈的白色漸層覆蓋 (模擬內容消失) */
-        /* 從完全不透明的白色開始，使其有強烈的遮擋感 */
-        background: linear-gradient(to left, rgba(255, 255, 255, 1) 40%, rgba(255, 255, 255, 0.1) 100%);
+        /* 使用漸變色，從不透明的白色開始，使其有強烈的遮擋感 */
+        background: linear-gradient(to left, rgba(255, 255, 255, 1) 40%, rgba(255, 255, 255, 0) 100%);
         
-        /* 2. 額外的黑邊陰影疊加，使其看起來被「切斷」且更明顯 */
-        box-shadow: -5px 0 8px -3px rgba(0, 0, 0, 0.4);
-        
-        pointer-events: none; /* 讓陰影不阻擋點擊 Tab */
+        pointer-events: none; /* 讓箭頭不阻擋點擊 Tab */
         z-index: 10;
     }
-
-    /* 可選：增加 Tab 之間的間距，讓陰影效果更自然 */
-    div[data-testid="stTabs"] button {
-        margin-right: 8px;
-    }
     
+    /* 註：我們只使用單邊箭頭作為提示，確保穩定性。 */
     </style>
 """, unsafe_allow_html=True)
 # --- 注入 CSS 結束 ---
@@ -78,7 +71,7 @@ if 'sen_filter' not in st.session_state:
 @st.cache_data
 def load_data():
     try:
-        # 修正檔案名稱: 使用您最新的檔案名稱
+        # 使用您最新的檔案名稱
         school_df = pd.read_csv("database_school_info.csv") 
         article_df = pd.read_csv("database_related_article.csv")
         
