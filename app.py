@@ -273,8 +273,7 @@ def display_info(label, value, is_fee=False):
 
     if is_valid_data(value):
         val_str = str(value)
-        # 檢查是否為百分比欄位 (通過檢查LABEL_MAP中對應的key是否包含"百分率")
-        # 由於 LABEL_MAP 中已經去掉了 "%"，這裡需要檢查原始 key 是否包含 "百分率"
+        # 檢查是否為百分比欄位 (通過檢查原始 key 是否包含 "百分率")
         is_percentage_field = '百分率' in label 
         
         if "網頁" in label and "http" in val_str:
@@ -790,9 +789,11 @@ if school_df is not None and article_df is not None:
                         qual_df = pd.DataFrame(qual_data)
                         
                         # 2. 繪製條形圖 (Bar Chart)
+                        # --- 核心修正: 設定 X 軸 scale domain 為 [0, 100] ---
+                        scale_domain = [0, 100]
                         bars = alt.Chart(qual_df).mark_bar(color='#1abc9c').encode(
-                            # X 軸格式化為百分比
-                            x=alt.X('百分比', title='百分比', axis=alt.Axis(format='~s')),
+                            # X 軸格式化為百分比, 並設定 scale domain
+                            x=alt.X('百分比', title='百分比', scale=alt.Scale(domain=scale_domain)), 
                             # Y 軸使用移除 % 的類別名稱
                             y=alt.Y('類別', title=None, sort='-x'), 
                             # 提示框格式化為百分比
