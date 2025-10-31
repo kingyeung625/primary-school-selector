@@ -31,23 +31,21 @@ if 'detail_view_per_school' not in st.session_state:
 @st.cache_data
 def load_data():
     try:
-        # --- [START] 修正檔案名稱: 使用您最新的檔案名稱 ---
+        # 修正檔案名稱: 使用您最新的檔案名稱
         school_df = pd.read_csv("database_school_info.csv") 
         article_df = pd.read_csv("database_related_article.csv")
-        # --- [END] 修正檔案名稱 ---
         
         school_df.columns = school_df.columns.str.strip()
         article_df.columns = article_df.columns.str.strip()
         
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
-        # --- [START] 修正時間欄位: 強制清理時間欄位 ---
+        # 強制清理時間欄位 (CC, CD, CE, CF)
         time_cols_to_clean = ["上課時間_", "放學時間", "午膳時間", "午膳結束時間"]
         for col in time_cols_to_clean:
             if col in school_df.columns:
                 # 強制轉為 string 並移除前後空格
                 school_df[col] = school_df[col].astype(str).str.strip()
-        # --- [END] 修正時間欄位 ---
 
         for col in school_df.select_dtypes(include=['object']).columns:
             if col not in time_cols_to_clean and school_df[col].dtype == 'object':
@@ -95,7 +93,7 @@ def load_data():
         st.error(f"處理資料時發生錯誤：{e}。請檢查您的 CSV 檔案格式是否正確。")
         return None, None
 
-# --- [START] 輔助函數 (更新) ---
+# --- [START] 輔助函數 ---
 LABEL_MAP = { 
     "校監_校管會主席姓名": "校監", 
     "校長姓名": "校長",
@@ -183,9 +181,9 @@ def display_info(label, value, is_fee=False):
             if isinstance(value, (int, float)) and value > 0:
                 display_value = f"${int(value)}"
             elif isinstance(value, (int, float)) and value == 0:
-                display_value = "$0" # 費用應顯示 $0
+                display_value = "$0"
             else:
-                display_value = val_str # 用於 "N/A" 或其他文字
+                display_value = val_str
         elif is_time_field and ':' in val_str:
             # 時間格式化邏輯
             try:
@@ -201,9 +199,9 @@ def display_info(label, value, is_fee=False):
     
     elif is_fee:
         if label in ["學費", "堂費", "家長教師會費"]:
-             display_value = "$0" # 數字費用預設為 $0
+             display_value = "$0"
         else:
-             display_value = "沒有" # 文字費用預設為 "沒有"
+             display_value = "沒有"
     
     elif label == "關聯學校":
         st.markdown(f"**{display_label}：** {display_value}")
@@ -376,17 +374,20 @@ if school_df is not None and article_df is not None:
             }
             
             # --- 學校詳細資料頁面的分類列表 ---
-            DETAIL_VIEWS = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構"]
+            DETAIL_VIEWS = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構", "聯絡資料"]
 
             for index, row in filtered_schools.iterrows():
-                # 重新檢查是否有辦學理念數據，以便正確定義按鈕列表
+                # 檢查是否有辦學理念數據，以便正確定義按鈕列表
                 has_mission_data = any(is_valid_data(row.get(col)) for col in other_categories["辦學理念"])
                 
                 # 建立當前學校的完整視圖列表
                 current_detail_views = list(DETAIL_VIEWS)
                 if has_mission_data:
                     current_detail_views.append("辦學理念與補充資料")
-                current_detail_views.append("聯絡資料")
+                
+                # 將 "辦學理念與補充資料" 放在倒數第二個位置
+                current_detail_views.sort(key=lambda x: (x != "聯絡資料", x != "辦學理念與補充資料"))
+
 
                 with st.expander(f"**{row['學校名稱']}**"):
                     
@@ -400,30 +401,30 @@ if school_df is not None and article_df is not None:
                                     with st.container(border=True):
                                         st.markdown(f"[{title}]({link})")
 
-                    # --- [START] 按鈕切換區 ---
+                    # --- [START] 按鈕切換區 (優化佈局) ---
                     school_key = row['學校名稱'] + str(index)
                     if school_key not in st.session_state.detail_view_per_school:
                         st.session_state.detail_view_per_school[school_key] = DEFAULT_DETAIL_VIEW
                         
                     current_detail_view = st.session_state.detail_view_per_school[school_key]
                     
-                    # 佈局按鈕，讓它們能自動換行 (使用 4 欄以實現響應式堆疊)
-                    cols = st.columns(4)
+                    # 使用 2 欄佈局來實現手機上的緊湊堆疊
+                    cols = st.columns(2)
                     col_index = 0
                     
                     for view in current_detail_views:
-                        with cols[col_index % 4]:
+                        with cols[col_index % 2]: # 將按鈕分配給兩欄
                             is_selected = current_detail_view == view
                             button_type = "primary" if is_selected else "secondary"
                             
-                            # 注意：使用唯一的 key，並在點擊時更新 session state
-                            if st.button(view, type=button_type, key=f"{school_key}_detail_btn_{view}"):
+                            if st.button(view, type=button_type, use_container_width=True, key=f"{school_key}_detail_btn_{view}"):
                                 st.session_state.detail_view_per_school[school_key] = view
                                 st.rerun()
                         
                         col_index += 1
                     
                     st.divider()
+                    # --- [END] 按鈕切換區 ---
 
                     # --- 顯示內容區 (使用 if/elif 根據按鈕狀態顯示內容) ---
                     view = current_detail_view
