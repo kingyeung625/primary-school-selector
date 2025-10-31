@@ -35,19 +35,19 @@ st.markdown("""
         border-collapse: collapse;
         margin-bottom: 1em;
         table-layout: auto; 
-        min-width: 400px;
+        min-width: 400px; /* 確保在手機上仍有最小寬度以保持對齊 */
     }
     .clean-table th, .clean-table td {
         padding: 8px 12px;
         text-align: left;
         border: none; 
-        border-bottom: 1px solid #eee; 
+        border-bottom: 1px solid #eee; /* 增加行分隔線 */
         vertical-align: top;
     }
     .clean-table th {
         font-weight: 600;
         background-color: #f7f7f7;
-        border-bottom: 2px solid #ccc;
+        border-bottom: 2px solid #ccc; /* 標題下雙分隔線 */
     }
     
     /* 4. 測驗次數/班級結構 表格樣式優化 */
@@ -55,7 +55,7 @@ st.markdown("""
         text-align: center;
     }
     .clean-table.class-table td:nth-child(1), .clean-table.assessment-table td:nth-child(1) {
-        font-weight: bold;
+        font-weight: bold; /* 讓第一欄文字粗體顯示 */
         width: 30%; 
     }
     
@@ -281,7 +281,7 @@ def display_info(label, value, is_fee=False):
 
     st.markdown(f"**{display_label}：** {display_value}")
 
-# --- NEW: Function to create Pie Chart using Altair ---
+# Function to create Pie Chart using Altair
 def create_pie_chart(df, title):
     # Ensure all values sum to 100 (Altair usually handles this, but good practice)
     chart = alt.Chart(df).mark_arc(outerRadius=120, innerRadius=50).encode(
@@ -293,7 +293,7 @@ def create_pie_chart(df, title):
         title=title
     ).interactive()
     return chart
-# --- END NEW FUNCTIONS ---
+# --- [END] 輔助函數 ---
 
 school_df, article_df = load_data()
 
@@ -581,7 +581,7 @@ if school_df is not None and article_df is not None:
                         
                         st.markdown("##### 測驗與考試次數")
                         
-                        # 測驗與考試次數 - HTML Table (確保對齊)
+                        # 測驗與考試次數 - HTML Table 
                         assessment_table_html = f"""
                         <table class="clean-table assessment-table">
                             <thead>
@@ -630,7 +630,6 @@ if school_df is not None and article_df is not None:
                         
                         for field_key, label in all_policy_data:
                             # 獲取值，並將內部的 \n 轉換為 <br>
-                            # 這裡使用 display_info 函數來獲取值，並手動格式化，以確保不會顯示 "沒有"
                             raw_value = row.get(col_map[field_key])
                             value = str(raw_value).replace('\n', '<br>') if is_valid_data(raw_value) else "沒有"
                             
