@@ -592,7 +592,7 @@ if school_df is not None and article_df is not None:
                         
                         st.markdown("##### 測驗與考試次數")
                         
-                        # 測驗與考試次數 - HTML Table (確保對齊)
+                        # 測驗與考試次數 - HTML Table (已修正錯位問題)
                         assessment_table_html = f"""
                         <table class="clean-table assessment-table">
                             <thead>
@@ -669,12 +669,12 @@ if school_df is not None and article_df is not None:
 
                         # 2. 教師團隊學歷 & 年資 (Pie Charts)
                         
-                        # 獲取並確保數據為有效數字
-                        master_pct = row.get("碩士_博士或以上人數百分率")
-                        bachelor_pct = row.get("學士人數百分率")
-                        y0_4_pct = row.get("0至4年年資人數百分率")
-                        y5_9_pct = row.get("5至9年年資人數百分率")
-                        y10_pct = row.get("10年年資或以上人數百分率")
+                        # 獲取並確保數據為有效數字 (修正 TypeError 的關鍵)
+                        master_pct = row.get("碩士_博士或以上人數百分率", 0)
+                        bachelor_pct = row.get("學士人數百分率", 0)
+                        y0_4_pct = row.get("0至4年年資人數百分率", 0)
+                        y5_9_pct = row.get("5至9年年資人數百分率", 0)
+                        y10_pct = row.get("10年年資或以上人數百分率", 0)
                         
                         # 計算學歷其他/缺失百分比
                         calculated_sum_qualification = master_pct + bachelor_pct
