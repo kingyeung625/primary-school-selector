@@ -14,7 +14,7 @@ if 'search_mode' not in st.session_state:
 if 'filtered_schools' not in st.session_state:
     st.session_state.filtered_schools = pd.DataFrame()
 
-# 初始化篩選器按鈕狀態 (Filter buttons)
+# 初始化篩選器按鈕狀態 (保留狀態以防用戶切換回來)
 if 'master_filter' not in st.session_state:
     st.session_state.master_filter = 0
 if 'exp_filter' not in st.session_state:
@@ -22,16 +22,11 @@ if 'exp_filter' not in st.session_state:
 if 'sen_filter' not in st.session_state:
     st.session_state.sen_filter = 0
 
-# 初始化學校詳細資訊按鈕狀態 (Detail buttons)
-DEFAULT_DETAIL_VIEW = "基本資料"
-if 'detail_view_per_school' not in st.session_state:
-    st.session_state.detail_view_per_school = {}
-
 # --- 載入與處理資料 ---
 @st.cache_data
 def load_data():
     try:
-        # 修正檔案名稱: 使用您最新的檔案名稱
+        # 使用您最新的檔案名稱
         school_df = pd.read_csv("database_school_info.csv") 
         article_df = pd.read_csv("database_related_article.csv")
         
@@ -208,51 +203,6 @@ def display_info(label, value, is_fee=False):
         return
 
     st.markdown(f"**{display_label}：** {display_value}")
-    
-# 格式化詳細資料頁面切換按鈕 (Detail Buttons)
-def render_detail_buttons(school_key, current_detail_view, views_list):
-    
-    # --- [START] 注入 CSS 實現彈性佈局 ---
-    # 這是關鍵的 CSS 技巧，目標是讓 Streamlit 的每個 st.button 容器 (div) 表現為內聯區塊，並減少垂直間距
-    st.markdown("""
-        <style>
-        .detail-button-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px; /* 按鈕之間的間距 */
-            margin-bottom: 10px;
-        }
-        .detail-button-container .stButton {
-            width: auto !important; /* 讓按鈕容器自適應內容寬度 */
-            margin: 0 !important; /* 消除 Streamlit 預設的垂直/水平 margin */
-            height: auto;
-        }
-        .detail-button-container .stButton > button {
-            padding: 4px 8px; /* 縮小內邊距 */
-            font-size: 14px;
-            height: auto;
-            min-height: 0px;
-            line-height: 1;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    # --- [END] 注入 CSS ---
-    
-    # 使用一個假的 DIV 容器，讓 Streamlit 知道我們要在這裡渲染按鈕
-    # 並且我們在 CSS 中將所有的 stButton 包裝成 inline-block
-    st.markdown('<div class="detail-button-container">', unsafe_allow_html=True)
-    
-    for view in views_list:
-        is_selected = current_detail_view == view
-        button_type = "primary" if is_selected else "secondary"
-        
-        # 渲染按鈕
-        if st.button(view, type=button_type, key=f"{school_key}_detail_btn_{view}"):
-            st.session_state.detail_view_per_school[school_key] = view
-            st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
 # --- [END] 輔助函數 ---
 
 school_df, article_df = load_data()
@@ -311,7 +261,7 @@ if school_df is not None and article_df is not None:
             with c6:
                 has_tutorial_session = st.checkbox("下午設導修課 (教師指導家課)", key="tutorial")
         
-        # --- [START] 師資按鈕篩選 UI ---
+        # --- [START] 師資按鈕篩選 UI (保持按鈕佈局) ---
         with st.expander("根據師資等級搜尋"):
             
             st.markdown("**碩士/博士或以上學歷 (%)**")
@@ -381,6 +331,7 @@ if school_df is not None and article_df is not None:
             st.rerun()
 
     else:
+        # --- [START] 結果頁面：切換回 ST.TABS 結構 ---
         if st.button("✏️ 返回並修改篩選條件"):
             st.session_state.search_mode = False
             st.rerun()
@@ -422,18 +373,15 @@ if school_df is not None and article_df is not None:
             DETAIL_VIEWS = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構", "聯絡資料"]
 
             for index, row in filtered_schools.iterrows():
-                # 檢查是否有辦學理念數據，以便正確定義按鈕列表
+                # 檢查是否有辦學理念數據
                 has_mission_data = any(is_valid_data(row.get(col)) for col in other_categories["辦學理念"])
                 
-                # 建立當前學校的完整視圖列表
-                current_detail_views = list(DETAIL_VIEWS)
+                # 建立 tabs 列表
+                tab_list = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構"]
                 if has_mission_data:
-                    current_detail_views.append("辦學理念與補充資料")
+                    tab_list.append("辦學理念與補充資料")
+                tab_list.append("聯絡資料")
                 
-                # 將 "辦學理念與補充資料" 放在倒數第二個位置
-                current_detail_views.sort(key=lambda x: (x != "聯絡資料", x != "辦學理念與補充資料"))
-
-
                 with st.expander(f"**{row['學校名稱']}**"):
                     
                     # --- 相關文章 ---
@@ -446,64 +394,12 @@ if school_df is not None and article_df is not None:
                                     with st.container(border=True):
                                         st.markdown(f"[{title}]({link})")
 
-                    # --- [START] 按鈕切換區 (優化佈局) ---
-                    school_key = row['學校名稱'] + str(index)
-                    if school_key not in st.session_state.detail_view_per_school:
-                        st.session_state.detail_view_per_school[school_key] = DEFAULT_DETAIL_VIEW
-                        
-                    current_detail_view = st.session_state.detail_view_per_school[school_key]
-                    
-                    # 使用 HTML/CSS 實現真正的彈性佈局
-                    
-                    # 渲染按鈕
-                    for view in current_detail_views:
-                        is_selected = current_detail_view == view
-                        button_type = "primary" if is_selected else "secondary"
-                        
-                        # 渲染按鈕
-                        # 這裡使用 st.columns(100) 配合 CSS 來模擬 Flex，因為 Streamlit 的 st.columns(N) 會將 N 個按鈕硬塞進 N 個欄位
-                        # 雖然不完美，但能利用 st.columns 的特性避免一些奇怪的 CSS 衝突
-                        with st.columns(10)[0]: 
-                            if st.button(view, type=button_type, key=f"{school_key}_detail_btn_{view}"):
-                                st.session_state.detail_view_per_school[school_key] = view
-                                st.rerun()
+                    tabs = st.tabs(tab_list)
 
-                    # 注入 CSS 覆蓋 Streamlit 預設佈局
-                    st.markdown("""
-                        <style>
-                            /* 讓 st.button 所在的父級 div (stVerticalBlock) 表現為 flex 容器 */
-                            div[data-testid="stVerticalBlock"] > div > div > div:nth-child(2) {
-                                display: flex;
-                                flex-wrap: wrap;
-                                align-items: center;
-                                margin-top: -10px; /* 輕微上移以減少與上一行的間距 */
-                            }
-                            /* 讓每個按鈕容器 (stButton) 都能並排並減少間隙 */
-                            .stButton {
-                                margin: 4px 4px 4px 0px !important; /* 減少垂直間距，增加水平間距 */
-                                width: auto !important; 
-                                height: auto !important;
-                                line-height: 1;
-                            }
-                            /* 調整按鈕本身的尺寸 */
-                            .stButton > button {
-                                padding: 4px 8px; /* 縮小內邊距 */
-                                font-size: 14px;
-                                height: auto;
-                                min-height: 0px;
-                            }
-                        </style>
-                    """, unsafe_allow_html=True)
-                    
-                    st.divider()
-                    # --- [END] 按鈕切換區 ---
-
-                    # --- 顯示內容區 (使用 if/elif 根據按鈕狀態顯示內容) ---
-                    view = current_detail_view
-
-                    # --- VIEW 1: 基本資料 ---
-                    if view == "基本資料":
+                    # --- TAB 1: 基本資料 ---
+                    with tabs[0]:
                         st.subheader("學校基本資料")
+                        # 佈局基於 DOCX 格式
                         c1, c2 = st.columns(2)
                         with c1: display_info("區域", row.get("區域"))
                         with c2: display_info("小一學校網", row.get("小一學校網"))
@@ -592,8 +488,8 @@ if school_df is not None and article_df is not None:
                         for col_key in fee_cols:
                             display_info(col_key, row.get(col_key), is_fee=True)
                         
-                    # --- VIEW 2: 學業評估與安排 ---
-                    elif view == "學業評估與安排":
+                    # --- TAB 2: 學業評估與安排 ---
+                    with tabs[1]:
                         st.subheader("學業評估與安排")
                         c1, c2, c3 = st.columns(3)
                         with c1:
@@ -611,8 +507,8 @@ if school_df is not None and article_df is not None:
                             if label not in ["一年級測驗次數", "一年級考試次數", "二至六年級測驗次數", "二至六年級考試次數", "小一上學期多元化評估", "下午設導修課"]:
                                 display_info(label, row.get(col_name))
 
-                    # --- VIEW 3: 師資概況 ---
-                    elif view == "師資概況":
+                    # --- TAB 3: 師資概況 ---
+                    with tabs[2]:
                         st.subheader("師資概況")
                         sub_cols = st.columns(3)
                         stat_cols_to_display = [col for col in teacher_stat_cols if col != "教師專業培訓及發展"]
@@ -623,8 +519,8 @@ if school_df is not None and article_df is not None:
                         st.divider()
                         display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
 
-                    # --- VIEW 4: 學校設施 ---
-                    elif view == "學校設施":
+                    # --- TAB 4: 學校設施 ---
+                    with tabs[3]:
                         st.subheader("設施數量")
                         c1, c2, c3, c4 = st.columns(4)
                         with c1: display_info("課室數目", row.get("課室數目"))
@@ -637,8 +533,8 @@ if school_df is not None and article_df is not None:
                         for col in facility_cols_text:
                             display_info(col, row.get(col))
 
-                    # --- VIEW 5: 班級結構 ---
-                    elif view == "班級結構":
+                    # --- TAB 5: 班級結構 ---
+                    with tabs[4]:
                         st.subheader("班級結構")
                         grades_display = ["小一", "小二", "小三", "小四", "小五", "小六", "總數"]
                         grades_internal = ["小一", "小二", "小三", "小四", "小五", "小六", "總"]
@@ -647,9 +543,10 @@ if school_df is not None and article_df is not None:
                         class_df = pd.DataFrame([last_year_data, this_year_data], columns=grades_display, index=["上學年班數", "本學年班數"])
                         st.table(class_df)
 
-                    # --- VIEW 6: 辦學理念與補充資料 ---
-                    elif view == "辦學理念與補充資料":
-                        if has_mission_data:
+                    # --- 動態 TABS (處理辦學理念和補充資料) ---
+                    tab_index = 5
+                    if has_mission_data:
+                        with tabs[tab_index]:
                             st.subheader("辦學理念")
                             for col in other_categories["辦學理念"]:
                                 display_info(col, row.get(col))
@@ -674,11 +571,9 @@ if school_df is not None and article_df is not None:
                                         other_cols_exist = True
                             if not other_cols_exist:
                                 st.info("沒有其他補充資料可顯示。")
-                        else:
-                            st.info("沒有辦學理念及補充資料可顯示。")
-
-                    # --- VIEW 7: 聯絡資料 ---
-                    elif view == "聯絡資料":
+                        tab_index += 1
+                    
+                    with tabs[tab_index]:
                         st.subheader("聯絡資料")
                         c1, c2 = st.columns(2)
                         with c1:
@@ -689,4 +584,4 @@ if school_df is not None and article_df is not None:
                             display_info("電郵", row.get("學校電郵"))
                         display_info("網頁", row.get("學校網址"))
                     
-                    # --- END 內容區 ---
+                    # --- [END] TABS 結構 ---
