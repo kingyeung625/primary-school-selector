@@ -5,7 +5,7 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="小學概覽選校搜尋器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示、表格樣式、側邊欄按鈕優化及 [NEW] 顏色背景設定 ---
+# --- 注入 CSS 實現 Tab 滾動提示、表格樣式、側邊欄按鈕優化及顏色背景設定 ---
 st.markdown("""
     <style>
     /* [NEW] 顏色背景設定 */
@@ -173,8 +173,7 @@ st.markdown(f"""
     """, unsafe_allow_html=True)
 
 # --- 初始化 Session State ---
-if 'search_mode' not in st.session_state:
-    st.session_state.search_mode = False 
+# 移除 'search_mode'
 if 'filtered_schools' not in st.session_state:
     st.session_state.filtered_schools = pd.DataFrame()
 
@@ -210,9 +209,6 @@ def load_data():
         if '學校名稱' in school_df.columns:
             school_df['學校名稱'] = school_df['學校名稱'].str.replace(r'\s+', ' ', regex=True).str.strip()
             
-        # 🚨 重要：所有原有的數字/時間轉換（如 pd.to_numeric, astype(int)）已被移除。
-        # 數據將被視為純文字，因此篩選邏輯中對數字的比較需要修改（見下文篩選邏輯部分）。
-
         return school_df, article_df
         
     except FileNotFoundError:
@@ -259,7 +255,6 @@ LABEL_MAP = {
 
 def is_valid_data(value):
     # 🚨 修正：在進行任何字串操作前，強制將值轉換為字串。
-    # 這可以避免 'float' object has no attribute 'strip' 錯誤，因為 numpy.nan 是 float 類型。
     value_str = str(value).strip() 
     
     # 檢查是否為非空字串，且不是字串 'nan' 或 '-'
@@ -439,516 +434,501 @@ if school_df is not None and article_df is not None:
         "分班安排": "分班安排"          
     }
 
-    if not st.session_state.search_mode:
+    # 呼叫側邊欄篩選器
+    render_sidebar_filters(school_df) 
+    
+    school_name_query = st.text_input(
+        "根據學校名稱搜尋", 
+        placeholder="請輸入學校名稱關鍵字...", 
+        key="school_name_search"
+    )
+    
+    with st.expander("根據課業安排篩選"):
+        assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
         
-        # 呼叫側邊欄篩選器
-        render_sidebar_filters(school_df) 
+        # 🚨 警告：此處篩選仍使用數字比較邏輯，但由於資料已轉為純文字，這可能不再準確。
+        # 如果您需要準確的數值篩選，必須在載入階段重新引入數字轉換。
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options, key="g1_tests")
+        with c2:
+            selected_g1_exams = st.selectbox("一年級考試次數", assessment_options, key="g1_exams")
+        with c3:
+            selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options, key="g2_6_tests")
+        with c4:
+            selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options, key="g2_6_exams")
+
+        c5, c6 = st.columns(2)
+        with c5:
+            use_diverse_assessment = st.checkbox("小一上學期以多元化評估代替測考", key="diverse")
+        with c6:
+            has_tutorial_session = st.checkbox("下午設導修課 (教師指導家課)", key="tutorial")
+    
+    # --- [START] 師資按鈕篩選 UI (保持按鈕佈局) ---
+    with st.expander("根據師資等級搜尋"):
         
-        school_name_query = st.text_input(
-            "根據學校名稱搜尋", 
-            placeholder="請輸入學校名稱關鍵字...", 
-            key="school_name_search"
-        )
+        st.markdown("**碩士/博士或以上學歷 (%)**")
+        col_master1, col_master2, col_master3 = st.columns(3)
+        with col_master1: style_filter_button("最少 5%", 5, 'master_filter')
+        with col_master2: style_filter_button("最少 15%", 15, 'master_filter')
+        with col_master3: style_filter_button("最少 25%", 25, 'master_filter')
+
+        st.markdown("**10年或以上年資 (%)**")
+        col_exp1, col_exp2, col_exp3 = st.columns(3)
+        with col_exp1: style_filter_button("最少 20%", 20, 'exp_filter')
+        with col_exp2: style_filter_button("最少 40%", 40, 'exp_filter')
+        with col_exp3: style_filter_button("最少 60%", 60, 'exp_filter')
         
-        # --- 原有的基本篩選器 Expander 已移除 ---
+        st.markdown("**特殊教育培訓 (%)**")
+        col_sen1, col_sen2, col_sen3 = st.columns(3)
+        with col_sen1: style_filter_button("最少 10%", 10, 'sen_filter')
+        with col_sen2: style_filter_button("最少 20%", 20, 'sen_filter')
+        with col_sen3: style_filter_button("最少 30%", 30, 'sen_filter')
+    # --- [END] 師資按鈕篩選 UI ---
 
-        with st.expander("根據課業安排篩選"):
-            assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
-            
-            # 🚨 警告：此處篩選仍使用數字比較邏輯，但由於資料已轉為純文字，這可能不再準確。
-            # 如果您需要準確的數值篩選，必須在載入階段重新引入數字轉換。
-            c1, c2, c3, c4 = st.columns(4)
-            with c1:
-                selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options, key="g1_tests")
-            with c2:
-                selected_g1_exams = st.selectbox("一年級考試次數", assessment_options, key="g1_exams")
-            with c3:
-                selected_g2_6_tests = st.selectbox("二至六年級測驗次數", assessment_options, key="g2_6_tests")
-            with c4:
-                selected_g2_6_exams = st.selectbox("二至六年級考試次數", assessment_options, key="g2_6_exams")
+    st.write("") 
+    
+    # 創建一個容器來顯示結果，並在按鈕點擊時清空並重新執行篩選
+    results_container = st.container()
 
-            c5, c6 = st.columns(2)
-            with c5:
-                use_diverse_assessment = st.checkbox("小一上學期以多元化評估代替測考", key="diverse")
-            with c6:
-                has_tutorial_session = st.checkbox("下午設導修課 (教師指導家課)", key="tutorial")
+    if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
         
-        # --- [START] 師資按鈕篩選 UI (保持按鈕佈局) ---
-        with st.expander("根據師資等級搜尋"):
+        mask = pd.Series(True, index=school_df.index)
+        query = school_name_query.strip()
+        
+        # --- 讀取 SIDEBAR 篩選器值並應用過濾 (保持不變) ---
+        selected_region = st.session_state.get("region", [])
+        selected_net = st.session_state.get("net", [])
+        selected_cat1 = st.session_state.get("cat1", [])
+        selected_gender = st.session_state.get("gender", [])
+        selected_religion = st.session_state.get("religion", [])
+        selected_language = st.session_state.get("lang", [])
+        selected_related = st.session_state.get("related", [])
+        selected_transport = st.session_state.get("transport", [])
+        
+        if query: mask &= school_df["學校名稱"].str.contains(query, case=False, na=False)
+        if selected_region: mask &= school_df["區域"].isin(selected_region)
+        if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
+        if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
+        if selected_religion: mask &= school_df["宗教"].isin(selected_religion)
+        if selected_language: mask &= school_df["教學語言"].isin(selected_language)
+        # 確保 "小一學校網" 欄位被當作字串進行比較
+        if selected_net: mask &= school_df["小一學校網"].isin(selected_net)
+        
+        if selected_related:
+            related_mask = pd.Series(False, index=school_df.index)
+            for col in selected_related:
+                if col in school_df.columns: 
+                    # 檢查欄位是否有有效數據 (is_valid_data)
+                    related_mask |= school_df[col].apply(lambda x: is_valid_data(x))
+            mask &= related_mask
+        
+        if selected_transport:
+            transport_mask = pd.Series(False, index=school_df.index)
+            for col in selected_transport:
+                if col in school_df.columns: transport_mask |= (school_df[col] == "有")
+            mask &= transport_mask
+        # --- SIDEBAR 篩選結束 ---
+        
+        # --- 主體其他篩選邏輯 (🚨 重要：由於資料現為純文字，這裡的數值篩選將不再準確！) ---
+        # 必須將篩選值轉換為字串來進行匹配
+        
+        def apply_assessment_filter_text(mask, column, selection):
+            if selection == "0次": return mask & (school_df[column] == "0")
+            elif selection == "不多於1次": 
+                # 純文字無法進行 <= 1 比較，只能匹配 "1" 或 "0"
+                return mask & ((school_df[column] == "1") | (school_df[column] == "0"))
+            elif selection == "不多於2次": 
+                # 純文字匹配 "2", "1", "0"
+                return mask & ((school_df[column] == "2") | (school_df[column] == "1") | (school_df[column] == "0"))
+            elif selection == "3次": return mask & (school_df[column] == "3")
+            return mask
             
-            st.markdown("**碩士/博士或以上學歷 (%)**")
-            col_master1, col_master2, col_master3 = st.columns(3)
-            with col_master1: style_filter_button("最少 5%", 5, 'master_filter')
-            with col_master2: style_filter_button("最少 15%", 15, 'master_filter')
-            with col_master3: style_filter_button("最少 25%", 25, 'master_filter')
+        mask = apply_assessment_filter_text(mask, col_map["g1_tests"], selected_g1_tests)
+        mask = apply_assessment_filter_text(mask, col_map["g1_exams"], selected_g1_exams)
+        mask = apply_assessment_filter_text(mask, col_map["g2_6_tests"], selected_g2_6_tests)
+        mask = apply_assessment_filter_text(mask, col_map["g2_6_exams"], selected_g2_6_exams)
+        
+        if use_diverse_assessment: mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
+        if has_tutorial_session: mask &= (school_df[col_map["tutorial_session"]] == "有")
+        
+        # 師資按鈕篩選邏輯：純文字無法進行數字比較，暫時不做數值過濾
+        
+        st.session_state.filtered_schools = school_df[mask]
 
-            st.markdown("**10年或以上年資 (%)**")
-            col_exp1, col_exp2, col_exp3 = st.columns(3)
-            with col_exp1: style_filter_button("最少 20%", 20, 'exp_filter')
-            with col_exp2: style_filter_button("最少 40%", 40, 'exp_filter')
-            with col_exp3: style_filter_button("最少 60%", 60, 'exp_filter')
+    # --- 結果顯示區 (不論是否點擊按鈕，只要 state 中有結果就顯示) ---
+    if not st.session_state.filtered_schools.empty:
+        
+        with results_container:
+            st.divider()
+            filtered_schools = st.session_state.filtered_schools
+            st.subheader(f"篩選結果：共找到 {len(filtered_schools)} 間學校")
             
-            st.markdown("**特殊教育培訓 (%)**")
-            col_sen1, col_sen2, col_sen3 = st.columns(3)
-            with col_sen1: style_filter_button("最少 10%", 10, 'sen_filter')
-            with col_sen2: style_filter_button("最少 20%", 20, 'sen_filter')
-            with col_sen3: style_filter_button("最少 30%", 30, 'sen_filter')
-        # --- [END] 師資按鈕篩選 UI ---
-
-        st.write("") 
-        if st.button("🚀 搜尋學校", type="primary", use_container_width=True):
-            st.session_state.search_mode = True
-            
-            mask = pd.Series(True, index=school_df.index)
-            query = school_name_query.strip()
-            
-            # --- 讀取 SIDEBAR 篩選器值並應用過濾 (保持不變) ---
-            selected_region = st.session_state.get("region", [])
-            selected_net = st.session_state.get("net", [])
-            selected_cat1 = st.session_state.get("cat1", [])
-            selected_gender = st.session_state.get("gender", [])
-            selected_religion = st.session_state.get("religion", [])
-            selected_language = st.session_state.get("lang", [])
-            selected_related = st.session_state.get("related", [])
-            selected_transport = st.session_state.get("transport", [])
-            
-            if query: mask &= school_df["學校名稱"].str.contains(query, case=False, na=False)
-            if selected_region: mask &= school_df["區域"].isin(selected_region)
-            if selected_cat1: mask &= school_df["資助類型"].isin(selected_cat1)
-            if selected_gender: mask &= school_df["學生性別"].isin(selected_gender)
-            if selected_religion: mask &= school_df["宗教"].isin(selected_religion)
-            if selected_language: mask &= school_df["教學語言"].isin(selected_language)
-            # 確保 "小一學校網" 欄位被當作字串進行比較
-            if selected_net: mask &= school_df["小一學校網"].isin(selected_net)
-            
-            if selected_related:
-                related_mask = pd.Series(False, index=school_df.index)
-                for col in selected_related:
-                    if col in school_df.columns: 
-                        # 檢查欄位是否有有效數據 (is_valid_data)
-                        related_mask |= school_df[col].apply(lambda x: is_valid_data(x))
-                mask &= related_mask
-            
-            if selected_transport:
-                transport_mask = pd.Series(False, index=school_df.index)
-                for col in selected_transport:
-                    if col in school_df.columns: transport_mask |= (school_df[col] == "有")
-                mask &= transport_mask
-            # --- SIDEBAR 篩選結束 ---
-            
-            # --- 主體其他篩選邏輯 (🚨 重要：由於資料現為純文字，這裡的數值篩選將不再準確！) ---
-            # 必須將篩選值轉換為字串來進行匹配
-            
-            def apply_assessment_filter_text(mask, column, selection):
-                if selection == "0次": return mask & (school_df[column] == "0")
-                elif selection == "不多於1次": 
-                    # 純文字無法進行 <= 1 比較，只能匹配 "1" 或 "0"
-                    return mask & ((school_df[column] == "1") | (school_df[column] == "0"))
-                elif selection == "不多於2次": 
-                    # 純文字匹配 "2", "1", "0"
-                    return mask & ((school_df[column] == "2") | (school_df[column] == "1") | (school_df[column] == "0"))
-                elif selection == "3次": return mask & (school_df[column] == "3")
-                return mask
+            if filtered_schools.empty:
+                st.warning("找不到符合所有篩選條件的學校。")
+            else:
+                # 欄位定義 (保持名稱不變)
+                fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
+                teacher_stat_cols = [
+                    "已接受師資培訓人數百分率", "學士人數百分率", "碩士／博士或以上人數百分率", 
+                    "特殊教育培訓人數百分率", "0至4年年資人數百分率", "5至9年年資人數百分率", 
+                    "10年年資或以上人數百分率", "核准編制教師職位數目", "教師總人數", 
+                    "教師專業培訓及發展"
+                ]
+                other_categories = {
+                    "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色", "校訓"], 
+                }
+                facility_cols_counts = ["課室數目", "禮堂數目", "操場數目", "圖書館數目"]
+                facility_cols_text = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
+                assessment_display_map = {
+                    "g1_diverse_assessment": "小一上學期多元化評估",
+                    "tutorial_session": "下午設導修課",
+                    "no_test_after_holiday": "避免長假期後測考",
+                    "policy_on_web": "網上校本課業政策",
+                    "homework_policy": "制定校本課業政策",
+                    "班級教學模式": "班級教學模式", 
+                    "分班安排": "分班安排",
+                    "diverse_learning_assessment": "多元學習評估" 
+                }
                 
-            mask = apply_assessment_filter_text(mask, col_map["g1_tests"], selected_g1_tests)
-            mask = apply_assessment_filter_text(mask, col_map["g1_exams"], selected_g1_exams)
-            mask = apply_assessment_filter_text(mask, col_map["g2_6_tests"], selected_g2_6_tests)
-            mask = apply_assessment_filter_text(mask, col_map["g2_6_exams"], selected_g2_6_exams)
-            
-            if use_diverse_assessment: mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
-            if has_tutorial_session: mask &= (school_df[col_map["tutorial_session"]] == "有")
-            
-            # 師資按鈕篩選邏輯：純文字無法進行數字比較，需要重新評估
-            # 暫時移除百分比比較，僅在百分比欄位不為空時通過篩選
-            
-            # if st.session_state.master_filter > 0:
-            #     mask &= (school_df["碩士_博士或以上人數百分率"].apply(is_valid_data)) 
-            # if st.session_state.exp_filter > 0:
-            #     mask &= (school_df["10年年資或以上人數百分率"].apply(is_valid_data))
-            # if st.session_state.sen_filter > 0:
-            #     mask &= (school_df["特殊教育培訓人數百分率"].apply(is_valid_data))
-
-            # 🚨 警告：上述複雜的數值篩選（包括按鈕篩選）在純文字模式下是**無效**的。
-            # 除非您將資料格式化為可比較的數值，否則這些篩選功能將無法實現。
-            
-            st.session_state.filtered_schools = school_df[mask]
-            st.rerun()
-
-    else:
-        # --- [START] 結果頁面：切換回 ST.TABS 結構 ---
-        if st.button("✏️ 返回並修改篩選條件"):
-            st.session_state.search_mode = False
-            st.rerun()
-
-        st.divider()
-        filtered_schools = st.session_state.filtered_schools
-        st.subheader(f"篩選結果：共找到 {len(filtered_schools)} 間學校")
-        
-        if filtered_schools.empty:
-            st.warning("找不到符合所有篩選條件的學校。")
-        else:
-            # 欄位定義 (保持名稱不變)
-            fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
-            teacher_stat_cols = [
-                "已接受師資培訓人數百分率", "學士人數百分率", "碩士／博士或以上人數百分率", 
-                "特殊教育培訓人數百分率", "0至4年年資人數百分率", "5至9年年資人數百分率", 
-                "10年年資或以上人數百分率", "核准編制教師職位數目", "教師總人數", 
-                "教師專業培訓及發展"
-            ]
-            other_categories = {
-                "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色", "校訓"], 
-            }
-            facility_cols_counts = ["課室數目", "禮堂數目", "操場數目", "圖書館數目"]
-            facility_cols_text = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
-            assessment_display_map = {
-                "g1_diverse_assessment": "小一上學期多元化評估",
-                "tutorial_session": "下午設導修課",
-                "no_test_after_holiday": "避免長假期後測考",
-                "policy_on_web": "網上校本課業政策",
-                "homework_policy": "制定校本課業政策",
-                "班級教學模式": "班級教學模式", 
-                "分班安排": "分班安排",
-                "diverse_learning_assessment": "多元學習評估" 
-            }
-            
-            for index, row in filtered_schools.iterrows():
-                # 檢查是否有辦學理念數據 (包括校訓)
-                has_mission_data = any(is_valid_data(row.get(col)) for col in other_categories["辦學理念"])
-                
-                # 建立 tabs 列表
-                tab_list = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構"]
-                if has_mission_data:
-                    tab_list.append("辦學理念") 
-                tab_list.append("聯絡資料")
-                
-                with st.expander(f"**{row['學校名稱']}**"):
+                for index, row in filtered_schools.iterrows():
+                    # 檢查是否有辦學理念數據 (包括校訓)
+                    has_mission_data = any(is_valid_data(row.get(col)) for col in other_categories["辦學理念"])
                     
-                    # --- 相關文章 (不變) ---
-                    related_articles = article_df[article_df["學校名稱"] == row["學校名稱"]] 
-                    if not related_articles.empty:
-                        with st.expander("相關文章", expanded=False): 
-                            for _, article_row in related_articles.iterrows():
-                                title, link = article_row.get('文章標題'), article_row.get('文章連結')
-                                if pd.notna(title) and pd.notna(link):
-                                    with st.container(border=True):
-                                        st.markdown(f"[{title}]({link})")
-
-                    tabs = st.tabs(tab_list)
-
-                    # --- TAB 1: 基本資料 ---
-                    with tabs[0]:
-                        st.subheader("學校基本資料")
-                        
-                        c1, c2 = st.columns(2)
-                        with c1: display_info("區域", row.get("區域"))
-                        with c2: display_info("小一學校網", row.get("小一學校網"))
-                        
-                        c3, c4 = st.columns(2)
-                        with c3: display_info("資助類型", row.get("資助類型"))
-                        with c4: display_info("學生性別", row.get("學生性別"))
-
-                        c5, c6 = st.columns(2)
-                        with c5: display_info("創校年份", row.get("創校年份"))
-                        with c6: display_info("辦學團體", row.get("辦學團體"))
-
-                        c7, c8 = st.columns(2)
-                        with c7: display_info("宗教", row.get("宗教"))
-                        with c8: display_info("學校佔地面積", row.get("學校佔地面積"))
-
-                        c9, c10 = st.columns(2)
-                        with c9: display_info("教學語言", row.get("教學語言"))
-                        
-                        # 關聯學校邏輯 (不變)
-                        with c10: 
-                            related_dragon_val = row.get("一條龍中學")
-                            related_feeder_val = row.get("直屬中學")
-                            related_linked_val = row.get("聯繫中學")
-                            
-                            has_dragon = is_valid_data(related_dragon_val)
-                            has_feeder = is_valid_data(related_feeder_val)
-                            has_linked = is_valid_data(related_linked_val)
-
-                            if not has_dragon and not has_feeder and not has_linked:
-                                display_info("關聯學校", None)
-                            else:
-                                st.markdown("**關聯學校：**")
-                                if has_dragon:
-                                    display_info("一條龍中學", related_dragon_val)
-                                if has_feeder:
-                                    display_info("直屬中學", related_feeder_val)
-                                if has_linked:
-                                    display_info("聯繫中學", related_linked_val)
-                        
-                        st.divider()
-                        st.subheader("校長及家教會資訊")
-
-                        c11, c12 = st.columns(2)
-                        with c11:
-                            principal_name = str(row.get("校長姓名", "")).strip()
-                            principal_title = str(row.get("校長稱謂", "")).strip()
-                            principal_display = f"{principal_name}{principal_title}" if is_valid_data(principal_name) else None
-                            display_info("校長", principal_display)
-                        with c12:
-                            supervisor_name = str(row.get("校監_校管會主席姓名", "")).strip()
-                            supervisor_title = str(row.get("校監_校管會主席稱謂", "")).strip()
-                            supervisor_display = f"{supervisor_name}{supervisor_title}" if is_valid_data(supervisor_name) else None
-                            display_info("校監_校管會主席姓名", supervisor_display)
-
-                        c13, c14 = st.columns(2)
-                        with c13: display_info("家長教師會", row.get("家長教師會"))
-                        with c14: display_info("舊生會_校友會", row.get("舊生會_校友會"))
-
-                        st.divider()
-                        st.subheader("上學、午膳及交通安排")
-                        
-                        # 第一排：上學時間 & 放學時間
-                        c_time1, c_time2 = st.columns(2)
-                        with c_time1:
-                            display_info("上課時間_", row.get("上課時間_")) 
-                        with c_time2:
-                            display_info("放學時間", row.get("放學時間")) 
-                        
-                        # 第二排：午膳安排 & 午膳時間
-                        c_lunch1, c_lunch2 = st.columns(2)
-                        with c_lunch1:
-                            display_info("午膳安排", row.get("午膳安排"))
-                        with c_lunch2:
-                            display_info("午膳時間", row.get("午膳時間")) 
-
-                        # 第三排：午膳結束時間 & 交通安排
-                        c_lunch_end, c_transport = st.columns(2)
-                        with c_lunch_end:
-                            display_info("午膳結束時間", row.get("午膳結束時間"))
-                        with c_transport:
-                            # 校車/保姆車
-                            has_bus, has_van = row.get("校車") == "有", row.get("保姆車") == "有"
-                            transport_status = "沒有"
-                            if has_bus and has_van: transport_status = "有校車及保姆車"
-                            elif has_bus: transport_status = "有校車"
-                            elif has_van: transport_status = "有保姆車"
-                            display_info("校車或保姆車", transport_status)
-                            
-                        st.divider()
-                        st.subheader("費用")
-                        
-                        # 費用將以 CSV 中的原始文字顯示
-                        for col_key in fee_cols:
-                            display_info(col_key, row.get(col_key), is_fee=True)
-                        
-                    # --- TAB 2: 學業評估與安排 (保持不變) ---
-                    with tabs[1]:
-                        st.subheader("學業評估與安排")
-                        
-                        st.markdown("##### 測驗與考試次數")
-                        
-                        # 測驗與考試次數 - HTML Table (顯示純文字)
-                        assessment_table_html = f"""
-                        <table class="clean-table assessment-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 35%;"></th>
-                                    <th>測驗次數</th>
-                                    <th>考試次數</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>一年級</td>
-                                    <td>{display_assessment_count(row.get(col_map["g1_tests"]))}</td>
-                                    <td>{display_assessment_count(row.get(col_map["g1_exams"]))}</td>
-                                </tr>
-                                <tr>
-                                    <td>二至六年級</td>
-                                    <td>{display_assessment_count(row.get(col_map["g2_6_tests"]))}</td>
-                                    <td>{display_assessment_count(row.get(col_map["g2_6_exams"]))}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        """
-                        st.markdown(assessment_table_html, unsafe_allow_html=True)
-                        
-                        st.divider()
-
-                        st.markdown("##### 課業及教學政策")
-                        
-                        # 政策與教學模式 - HTML List (顯示純文字)
-                        all_policy_data = [
-                            ("g1_diverse_assessment", "小一上學期多元化評估"),
-                            ("tutorial_session", "下午設導修課"),
-                            ("homework_policy", "制定校本課業政策"),
-                            ("no_test_after_holiday", "避免長假期後測考"),
-                            ("分班安排", "分班安排"),
-                            ("班級教學模式", "班級教學模式"),
-                            ("diverse_learning_assessment", "多元學習評估"),
-                            ("policy_on_web", "網上校本課業政策"),
-                        ]
-                        
-                        policy_list_html = ""
-                        
-                        for field_key, label in all_policy_data:
-                            # 獲取值，並將內部的 \n 轉換為 <br>
-                            value = str(row.get(field_key, "沒有")).replace('\n', '<br>')
-                            
-                            # 使用 CSS class 模擬 Key-Value 列表
-                            policy_list_html += f"""
-                                <div class="policy-list-item">
-                                    <strong>{label}：</strong>{value}
-                                </div>
-                            """
-                        
-                        st.markdown(policy_list_html, unsafe_allow_html=True)
-                            
-                    # --- TAB 3: 師資概況 ---
-                    with tabs[2]:
-                        st.subheader("師資團隊數字")
-                        
-                        # 1. 師資團隊數字 (顯示純文字)
-                        c1, c2 = st.columns(2)
-                        with c1:
-                            display_info("核准編制教師職位數目", row.get("核准編制教師職位數目")) 
-                        with c2:
-                            display_info("教師總人數", row.get("教師總人數"))
-
-                        st.divider()
-                        st.subheader("教師團隊學歷及年資") 
-                        
-                        col_left, col_right = st.columns(2)
-
-                        # --- 1. ACADEMICS/TRAINING DATA GENERATION (顯示純文字) ---
-                        qual_cols_map = {
-                            "已接受師資培訓人數百分率": "已接受師資培訓 (%)", 
-                            "學士人數百分率": "學士學位 (%)", 
-                            "碩士／博士或以上人數百分率": "碩士/博士學位 (%)", 
-                            "特殊教育培訓人數百分率": "特殊教育培訓 (%)"
-                        }
-                        qual_rows_html = ""
-                        for col_name, display_label in qual_cols_map.items():
-                            value = row.get(col_name, "-")
-                            display_value = value
-                            qual_rows_html += f"""<tr><td>{display_label}</td><td>{display_value}</td></tr>"""
-                        
-                        # --- 2. SENIORITY DATA GENERATION (顯示純文字) ---
-                        seniority_cols_map = {
-                            "0至4年年資人數百分率": "0-4年年資 (%)", 
-                            "5至9年年資人數百分率": "5-9年年資 (%)", 
-                            "10年年資或以上人數百分率": "10+年年資 (%)"
-                        }
-                        seniority_rows_html = ""
-                        for col_name, display_label in seniority_cols_map.items():
-                            value = row.get(col_name, "-")
-                            display_value = value
-                            seniority_rows_html += f"""<tr><td>{display_label}</td><td>{display_value}</td></tr>"""
-
-                        # Combine and display
-                        with col_left:
-                            st.markdown(f"""
-                                <div style="font-weight: bold; margin-bottom: 8px;">學歷及培訓</div>
-                                <table class="info-table">
-                                    {qual_rows_html}
-                                </table>
-                            """, unsafe_allow_html=True)
-                            
-                        with col_right:
-                             st.markdown(f"""
-                                <div style="font-weight: bold; margin-bottom: 8px;">年資分佈</div>
-                                <table class="info-table">
-                                    {seniority_rows_html}
-                                </table>
-                            """, unsafe_allow_html=True)
-
-                        st.divider()
-                        display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
-
-
-                    # --- TAB 4: 學校設施 (保持不變) ---
-                    with tabs[3]:
-                        # 1. 顯示數量統計 (顯示純文字)
-                        col_count1, col_count2 = st.columns(2)
-                        with col_count1:
-                            display_info("課室數目", row.get("課室數目"))
-                            display_info("操場數目", row.get("操場數目"))
-                        with col_count2:
-                            display_info("禮堂數目", row.get("禮堂數目"))
-                            display_info("圖書館數目", row.get("圖書館數目"))
-                        
-                        # 2. 顯示詳情 (顯示純文字)
-                        facility_cols_text_new = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
-                        
-                        for col in facility_cols_text_new:
-                            display_info(col, row.get(col))
-
-                    # --- TAB 5: 班級結構 ---
-                    with tabs[4]:
-                        st.subheader("班級結構")
-                        grades_internal = ["小一", "小二", "小三", "小四", "小五", "小六", "總"]
-                        # 班級數值將以純文字形式讀取
-                        last_year_data = [row.get(f"上學年{g}班數", "-") for g in grades_internal]
-                        this_year_data = [row.get(f"本學年{g}班數", "-") for g in grades_internal]
-                        
-                        # 班級結構 - HTML Table (顯示純文字)
-                        class_table_html = f"""
-                        <table class="clean-table class-table">
-                            <thead>
-                                <tr>
-                                    <th></th>
-                                    <th>小一</th>
-                                    <th>小二</th>
-                                    <th>小三</th>
-                                    <th>小四</th>
-                                    <th>小五</th>
-                                    <th>小六</th>
-                                    <th>總數</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>**上學年班數**</td>
-                                    <td style="text-align: center;">{last_year_data[0]}</td>
-                                    <td style="text-align: center;">{last_year_data[1]}</td>
-                                    <td style="text-align: center;">{last_year_data[2]}</td>
-                                    <td style="text-align: center;">{last_year_data[3]}</td>
-                                    <td style="text-align: center;">{last_year_data[4]}</td>
-                                    <td style="text-align: center;">{last_year_data[5]}</td>
-                                    <td style="text-align: center;">**{last_year_data[6]}**</td>
-                                </tr>
-                                <tr>
-                                    <td>**本學年班數**</td>
-                                    <td style="text-align: center;">{this_year_data[0]}</td>
-                                    <td style="text-align: center;">{this_year_data[1]}</td>
-                                    <td style="text-align: center;">{this_year_data[2]}</td>
-                                    <td style="text-align: center;">{this_year_data[3]}</td>
-                                    <td style="text-align: center;">{this_year_data[4]}</td>
-                                    <td style="text-align: center;">{this_year_data[5]}</td>
-                                    <td style="text-align: center;">**{this_year_data[6]}**</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        """
-                        st.markdown(class_table_html, unsafe_allow_html=True)
-
-                    # --- 動態 TABS: 辦學理念 (Tab index 5 或 6) ---
-                    tab_index = 5
+                    # 建立 tabs 列表
+                    tab_list = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構"]
                     if has_mission_data:
+                        tab_list.append("辦學理念") 
+                    tab_list.append("聯絡資料")
+                    
+                    with st.expander(f"**{row['學校名稱']}**"):
+                        
+                        # --- 相關文章 (不變) ---
+                        related_articles = article_df[article_df["學校名稱"] == row["學校名稱"]] 
+                        if not related_articles.empty:
+                            with st.expander("相關文章", expanded=False): 
+                                for _, article_row in related_articles.iterrows():
+                                    title, link = article_row.get('文章標題'), article_row.get('文章連結')
+                                    if pd.notna(title) and pd.notna(link):
+                                        with st.container(border=True):
+                                            st.markdown(f"[{title}]({link})")
+
+                        tabs = st.tabs(tab_list)
+
+                        # --- TAB 1: 基本資料 ---
+                        with tabs[0]:
+                            st.subheader("學校基本資料")
+                            
+                            c1, c2 = st.columns(2)
+                            with c1: display_info("區域", row.get("區域"))
+                            with c2: display_info("小一學校網", row.get("小一學校網"))
+                            
+                            c3, c4 = st.columns(2)
+                            with c3: display_info("資助類型", row.get("資助類型"))
+                            with c4: display_info("學生性別", row.get("學生性別"))
+
+                            c5, c6 = st.columns(2)
+                            with c5: display_info("創校年份", row.get("創校年份"))
+                            with c6: display_info("辦學團體", row.get("辦學團體"))
+
+                            c7, c8 = st.columns(2)
+                            with c7: display_info("宗教", row.get("宗教"))
+                            with c8: display_info("學校佔地面積", row.get("學校佔地面積"))
+
+                            c9, c10 = st.columns(2)
+                            with c9: display_info("教學語言", row.get("教學語言"))
+                            
+                            # 關聯學校邏輯 (不變)
+                            with c10: 
+                                related_dragon_val = row.get("一條龍中學")
+                                related_feeder_val = row.get("直屬中學")
+                                related_linked_val = row.get("聯繫中學")
+                                
+                                has_dragon = is_valid_data(related_dragon_val)
+                                has_feeder = is_valid_data(related_feeder_val)
+                                has_linked = is_valid_data(related_linked_val)
+
+                                if not has_dragon and not has_feeder and not has_linked:
+                                    display_info("關聯學校", None)
+                                else:
+                                    st.markdown("**關聯學校：**")
+                                    if has_dragon:
+                                        display_info("一條龍中學", related_dragon_val)
+                                    if has_feeder:
+                                        display_info("直屬中學", related_feeder_val)
+                                    if has_linked:
+                                        display_info("聯繫中學", related_linked_val)
+                            
+                            st.divider()
+                            st.subheader("校長及家教會資訊")
+
+                            c11, c12 = st.columns(2)
+                            with c11:
+                                principal_name = str(row.get("校長姓名", "")).strip()
+                                principal_title = str(row.get("校長稱謂", "")).strip()
+                                principal_display = f"{principal_name}{principal_title}" if is_valid_data(principal_name) else None
+                                display_info("校長", principal_display)
+                            with c12:
+                                supervisor_name = str(row.get("校監_校管會主席姓名", "")).strip()
+                                supervisor_title = str(row.get("校監_校管會主席稱謂", "")).strip()
+                                supervisor_display = f"{supervisor_name}{supervisor_title}" if is_valid_data(supervisor_name) else None
+                                display_info("校監_校管會主席姓名", supervisor_display)
+
+                            c13, c14 = st.columns(2)
+                            with c13: display_info("家長教師會", row.get("家長教師會"))
+                            with c14: display_info("舊生會_校友會", row.get("舊生會_校友會"))
+
+                            st.divider()
+                            st.subheader("上學、午膳及交通安排")
+                            
+                            # 第一排：上學時間 & 放學時間
+                            c_time1, c_time2 = st.columns(2)
+                            with c_time1:
+                                display_info("上課時間_", row.get("上課時間_")) 
+                            with c_time2:
+                                display_info("放學時間", row.get("放學時間")) 
+                            
+                            # 第二排：午膳安排 & 午膳時間
+                            c_lunch1, c_lunch2 = st.columns(2)
+                            with c_lunch1:
+                                display_info("午膳安排", row.get("午膳安排"))
+                            with c_lunch2:
+                                display_info("午膳時間", row.get("午膳時間")) 
+
+                            # 第三排：午膳結束時間 & 交通安排
+                            c_lunch_end, c_transport = st.columns(2)
+                            with c_lunch_end:
+                                display_info("午膳結束時間", row.get("午膳結束時間"))
+                            with c_transport:
+                                # 校車/保姆車
+                                has_bus, has_van = row.get("校車") == "有", row.get("保姆車") == "有"
+                                transport_status = "沒有"
+                                if has_bus and has_van: transport_status = "有校車及保姆車"
+                                elif has_bus: transport_status = "有校車"
+                                elif has_van: transport_status = "有保姆車"
+                                display_info("校車或保姆車", transport_status)
+                                
+                            st.divider()
+                            st.subheader("費用")
+                            
+                            # 費用將以 CSV 中的原始文字顯示
+                            for col_key in fee_cols:
+                                display_info(col_key, row.get(col_key), is_fee=True)
+                            
+                        # --- TAB 2: 學業評估與安排 (保持不變) ---
+                        with tabs[1]:
+                            st.subheader("學業評估與安排")
+                            
+                            st.markdown("##### 測驗與考試次數")
+                            
+                            # 測驗與考試次數 - HTML Table (顯示純文字)
+                            assessment_table_html = f"""
+                            <table class="clean-table assessment-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 35%;"></th>
+                                        <th>測驗次數</th>
+                                        <th>考試次數</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>一年級</td>
+                                        <td>{display_assessment_count(row.get(col_map["g1_tests"]))}</td>
+                                        <td>{display_assessment_count(row.get(col_map["g1_exams"]))}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>二至六年級</td>
+                                        <td>{display_assessment_count(row.get(col_map["g2_6_tests"]))}</td>
+                                        <td>{display_assessment_count(row.get(col_map["g2_6_exams"]))}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            """
+                            st.markdown(assessment_table_html, unsafe_allow_html=True)
+                            
+                            st.divider()
+
+                            st.markdown("##### 課業及教學政策")
+                            
+                            # 政策與教學模式 - HTML List (顯示純文字)
+                            all_policy_data = [
+                                ("g1_diverse_assessment", "小一上學期多元化評估"),
+                                ("tutorial_session", "下午設導修課"),
+                                ("homework_policy", "制定校本課業政策"),
+                                ("no_test_after_holiday", "避免長假期後測考"),
+                                ("分班安排", "分班安排"),
+                                ("班級教學模式", "班級教學模式"),
+                                ("diverse_learning_assessment", "多元學習評估"),
+                                ("policy_on_web", "網上校本課業政策"),
+                            ]
+                            
+                            policy_list_html = ""
+                            
+                            for field_key, label in all_policy_data:
+                                # 獲取值，並將內部的 \n 轉換為 <br>
+                                value = str(row.get(field_key, "沒有")).replace('\n', '<br>')
+                                
+                                # 使用 CSS class 模擬 Key-Value 列表
+                                policy_list_html += f"""
+                                    <div class="policy-list-item">
+                                        <strong>{label}：</strong>{value}
+                                    </div>
+                                """
+                            
+                            st.markdown(policy_list_html, unsafe_allow_html=True)
+                                
+                        # --- TAB 3: 師資概況 ---
+                        with tabs[2]:
+                            st.subheader("師資團隊數字")
+                            
+                            # 1. 師資團隊數字 (顯示純文字)
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                display_info("核准編制教師職位數目", row.get("核准編制教師職位數目")) 
+                            with c2:
+                                display_info("教師總人數", row.get("教師總人數"))
+
+                            st.divider()
+                            st.subheader("教師團隊學歷及年資") 
+                            
+                            col_left, col_right = st.columns(2)
+
+                            # --- 1. ACADEMICS/TRAINING DATA GENERATION (顯示純文字) ---
+                            qual_cols_map = {
+                                "已接受師資培訓人數百分率": "已接受師資培訓 (%)", 
+                                "學士人數百分率": "學士學位 (%)", 
+                                "碩士／博士或以上人數百分率": "碩士/博士學位 (%)", 
+                                "特殊教育培訓人數百分率": "特殊教育培訓 (%)"
+                            }
+                            qual_rows_html = ""
+                            for col_name, display_label in qual_cols_map.items():
+                                value = row.get(col_name, "-")
+                                display_value = value
+                                qual_rows_html += f"""<tr><td>{display_label}</td><td>{display_value}</td></tr>"""
+                            
+                            # --- 2. SENIORITY DATA GENERATION (顯示純文字) ---
+                            seniority_cols_map = {
+                                "0至4年年資人數百分率": "0-4年年資 (%)", 
+                                "5至9年年資人數百分率": "5-9年年資 (%)", 
+                                "10年年資或以上人數百分率": "10+年年資 (%)"
+                            }
+                            seniority_rows_html = ""
+                            for col_name, display_label in seniority_cols_map.items():
+                                value = row.get(col_name, "-")
+                                display_value = value
+                                seniority_rows_html += f"""<tr><td>{display_label}</td><td>{display_value}</td></tr>"""
+
+                            # Combine and display
+                            with col_left:
+                                st.markdown(f"""
+                                    <div style="font-weight: bold; margin-bottom: 8px;">學歷及培訓</div>
+                                    <table class="info-table">
+                                        {qual_rows_html}
+                                    </table>
+                                """, unsafe_allow_html=True)
+                                
+                            with col_right:
+                                 st.markdown(f"""
+                                    <div style="font-weight: bold; margin-bottom: 8px;">年資分佈</div>
+                                    <table class="info-table">
+                                        {seniority_rows_html}
+                                    </table>
+                                """, unsafe_allow_html=True)
+
+                            st.divider()
+                            display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
+
+
+                        # --- TAB 4: 學校設施 (保持不變) ---
+                        with tabs[3]:
+                            # 1. 顯示數量統計 (顯示純文字)
+                            col_count1, col_count2 = st.columns(2)
+                            with col_count1:
+                                display_info("課室數目", row.get("課室數目"))
+                                display_info("操場數目", row.get("操場數目"))
+                            with col_count2:
+                                display_info("禮堂數目", row.get("禮堂數目"))
+                                display_info("圖書館數目", row.get("圖書館數目"))
+                            
+                            # 2. 顯示詳情 (顯示純文字)
+                            facility_cols_text_new = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
+                            
+                            for col in facility_cols_text_new:
+                                display_info(col, row.get(col))
+
+                        # --- TAB 5: 班級結構 ---
+                        with tabs[4]:
+                            st.subheader("班級結構")
+                            grades_internal = ["小一", "小二", "小三", "小四", "小五", "小六", "總"]
+                            # 班級數值將以純文字形式讀取
+                            last_year_data = [row.get(f"上學年{g}班數", "-") for g in grades_internal]
+                            this_year_data = [row.get(f"本學年{g}班數", "-") for g in grades_internal]
+                            
+                            # 班級結構 - HTML Table (顯示純文字)
+                            class_table_html = f"""
+                            <table class="clean-table class-table">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>小一</th>
+                                        <th>小二</th>
+                                        <th>小三</th>
+                                        <th>小四</th>
+                                        <th>小五</th>
+                                        <th>小六</th>
+                                        <th>總數</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>**上學年班數**</td>
+                                        <td style="text-align: center;">{last_year_data[0]}</td>
+                                        <td style="text-align: center;">{last_year_data[1]}</td>
+                                        <td style="text-align: center;">{last_year_data[2]}</td>
+                                        <td style="text-align: center;">{last_year_data[3]}</td>
+                                        <td style="text-align: center;">{last_year_data[4]}</td>
+                                        <td style="text-align: center;">{last_year_data[5]}</td>
+                                        <td style="text-align: center;">**{last_year_data[6]}**</td>
+                                    </tr>
+                                    <tr>
+                                        <td>**本學年班數**</td>
+                                        <td style="text-align: center;">{this_year_data[0]}</td>
+                                        <td style="text-align: center;">{this_year_data[1]}</td>
+                                        <td style="text-align: center;">{this_year_data[2]}</td>
+                                        <td style="text-align: center;">{this_year_data[3]}</td>
+                                        <td style="text-align: center;">{this_year_data[4]}</td>
+                                        <td style="text-align: center;">{this_year_data[5]}</td>
+                                        <td style="text-align: center;">**{this_year_data[6]}**</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            """
+                            st.markdown(class_table_html, unsafe_allow_html=True)
+
+                        # --- 動態 TABS: 辦學理念 (Tab index 5 或 6) ---
+                        tab_index = 5
+                        if has_mission_data:
+                            with tabs[tab_index]:
+                                # 顯示校訓
+                                display_info("校訓", row.get("校訓"))
+                                
+                                # 顯示辦學宗旨、學校關注事項、學校特色
+                                for col in other_categories["辦學理念"]:
+                                    if col != "校訓": # 避免重複顯示
+                                        display_info(col, row.get(col))
+                                
+                            tab_index += 1
+                        
                         with tabs[tab_index]:
-                            # 顯示校訓
-                            display_info("校訓", row.get("校訓"))
-                            
-                            # 顯示辦學宗旨、學校關注事項、學校特色
-                            for col in other_categories["辦學理念"]:
-                                if col != "校訓": # 避免重複顯示
-                                    display_info(col, row.get(col))
-                            
-                        tab_index += 1
-                    
-                    with tabs[tab_index]:
-                        st.subheader("聯絡資料")
-                        c1, c2 = st.columns(2)
-                        with c1:
-                            display_info("地址", row.get("學校地址"))
-                            display_info("傳真", row.get("學校傳真"))
-                        with c2:
-                            display_info("電話", row.get("學校電話"))
-                            display_info("電郵", row.get("學校電郵"))
-                        display_info("網頁", row.get("學校網址"))
-                    
-                    # --- [END] TABS 結構 ---
+                            st.subheader("聯絡資料")
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                display_info("地址", row.get("學校地址"))
+                                display_info("傳真", row.get("學校傳真"))
+                            with c2:
+                                display_info("電話", row.get("學校電話"))
+                                display_info("電郵", row.get("學校電郵"))
+                            display_info("網頁", row.get("學校網址"))
+                        
+                        # --- [END] TABS 結構 ---
