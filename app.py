@@ -162,6 +162,7 @@ def load_data():
         
         for col in teacher_stat_cols:
             if col in school_df.columns:
+                # 關鍵：將這些百分比欄位轉換為數字，以便後續圖表使用
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
         assessment_cols = ["全年全科測驗次數_一年級", "全年全科考試次數_一年級", "全年全科測驗次數_二至六年級", "全年全科考試次數_二至六年級"]
@@ -762,8 +763,10 @@ if school_df is not None and article_df is not None:
                         st.subheader("師資團隊數字")
                         c1, c2 = st.columns(2)
                         with c1:
+                            # 核准編制教師職位數目：實際數字
                             display_info("上學年核准編制教師職位數目", row.get("上學年核准編制教師職位數目"))
                         with c2:
+                            # 教師總人數：實際數字
                             display_info("上學年教師總人數", row.get("上學年教師總人數"))
 
                         st.divider()
@@ -781,7 +784,8 @@ if school_df is not None and article_df is not None:
                         for col_name, display_label in qual_cols_map.items():
                             qual_data.append({
                                 '類別': display_label,
-                                '百分比': row.get(col_name, 0)
+                                # 關鍵：讀取原始百分比數值
+                                '百分比': row.get(col_name, 0) 
                             })
                         qual_df = pd.DataFrame(qual_data)
                         
@@ -824,6 +828,7 @@ if school_df is not None and article_df is not None:
                         for col_name, display_label in seniority_cols_map.items():
                             seniority_data.append({
                                 '年資': display_label,
+                                # 關鍵：讀取原始百分比數值
                                 '百分比': row.get(col_name, 0)
                             })
                         seniority_df = pd.DataFrame(seniority_data)
