@@ -5,56 +5,6 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示 (移除箭頭/陰影) ---
-st.markdown("""
-    <style>
-    /* 1. 基本容器設置 */
-    div[data-testid="stTabs"] {
-        position: relative;
-        overflow-x: auto; /* 確保內容可以滾動 */
-        padding-bottom: 5px; /* 留出空間 */
-        /* 隱藏預設滾動條 */
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-    }
-    /* 隱藏 Chrome/Safari 滾動條 */
-    div[data-testid="stTabs"] > div:first-child::-webkit-scrollbar {
-        display: none;
-    }
-
-    /* 2. 創建右側箭頭提示 (>> 符號) - 恢復視覺提示 */
-    div[data-testid="stTabs"]::after {
-        content: '>>'; 
-        position: absolute;
-        top: 0;
-        right: 0;
-        height: 100%;
-        width: 35px; /* 提示區寬度 */
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        padding-right: 5px;
-        font-weight: bold;
-        font-size: 1.2em; /* 讓箭頭更明顯 */
-        color: #1abc9c; /* 顏色與按鈕風格一致 */
-        
-        /* 使用漸變色，從不透明的白色開始，使其有強烈的遮擋感 */
-        background: linear-gradient(to left, rgba(255, 255, 255, 1) 40%, rgba(255, 255, 255, 0) 100%);
-        
-        pointer-events: none; /* 讓箭頭不阻擋點擊 Tab */
-        z-index: 10;
-    }
-    
-    /* 確保左側箭頭也被移除 (如果之前有定義的話) */
-    div[data-testid="stTabs"]::before {
-        content: none;
-        display: none;
-    }
-    
-    </style>
-""", unsafe_allow_html=True)
-# --- 注入 CSS 結束 ---
-
 # --- 主標題 ---
 st.title("香港小學選校篩選器")
 
@@ -268,7 +218,9 @@ if school_df is not None and article_df is not None:
         "no_test_after_holiday": "避免緊接在長假期後安排測考_讓學生在假期有充分的休息",
         "policy_on_web": "將校本課業政策上載至學校網頁_讓公眾及持份者知悉",
         "homework_policy": "制定適切的校本課業政策_讓家長了解相關安排_並定期蒐集教師_學生和家長的意見",
-        "diverse_learning_assessment": "多元學習評估"
+        "diverse_learning_assessment": "多元學習評估",
+        "班級教學模式": "班級教學模式", # <-- ADDED
+        "分班安排": "分班安排"          # <-- ADDED
     }
 
     if not st.session_state.search_mode:
@@ -578,6 +530,7 @@ if school_df is not None and article_df is not None:
                             display_info("分班安排", row.get(col_map["分班安排"]))
                             display_info("班級教學模式", row.get(col_map["班級教學模式"]))
                             display_info("多元學習評估", row.get(col_map["diverse_learning_assessment"]))
+
 
                     # --- TAB 3: 師資概況 ---
                     with tabs[2]:
