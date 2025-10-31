@@ -643,7 +643,7 @@ if school_df is not None and article_df is not None:
 
                     tabs = st.tabs(tab_list)
 
-                    # --- TAB 1: 基本資料 (已優化：時間信息移入主體並刪除冗餘) ---
+                    # --- TAB 1: 基本資料 (已優化：時間信息移入主體) ---
                     with tabs[0]:
                         st.subheader("學校基本資料")
                         # 佈局基於 DOCX 格式
@@ -827,6 +827,7 @@ if school_df is not None and article_df is not None:
                             value = row.get(col_name, 0)
                             # 格式化為 X.X%
                             display_value = f"{value:.1f}％"
+                            # 修正 HTML 縮排錯誤
                             qual_rows_html += f"""<tr><td>{display_label}</td><td>{display_value}</td></tr>"""
                         
                         # --- 2. SENIORITY DATA GENERATION ---
