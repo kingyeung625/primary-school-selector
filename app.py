@@ -28,6 +28,28 @@ st.markdown("""
         display: none;
     }
     
+    /* 3. HTML 表格樣式 (確保邊框透明，適合內容區) */
+    .clean-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1em;
+        table-layout: fixed; /* 固定表格佈局 */
+    }
+    .clean-table th, .clean-table td {
+        padding: 8px 12px;
+        text-align: left;
+        border: none; /* 移除所有邊框 */
+        border-bottom: 1px solid #eee; /* 增加行分隔線 */
+    }
+    .clean-table th {
+        font-weight: 600;
+        background-color: #f7f7f7;
+        border-bottom: 2px solid #ccc; /* 標題下雙分隔線 */
+    }
+    .clean-table td:nth-child(1) {
+        font-weight: bold; /* 讓 "一年級" 和 "二至六年級" 粗體顯示 */
+        width: 35%; /* 確保第一欄寬度足夠 */
+    }
     </style>
 """, unsafe_allow_html=True)
 # --- 注入 CSS 結束 ---
@@ -153,10 +175,9 @@ def is_valid_data(value):
 # --- [NEW FUNCTION] 僅顯示評估數字 ---
 def display_assessment_count(value):
     if is_valid_data(value) and isinstance(value, (int, float)):
-        # 僅顯示數字
-        st.markdown(f"**{int(value)}**")
-    else:
-        st.markdown("**-**") # 使用 "-" 表示無效或無數據
+        # 僅顯示數字，不顯示標籤
+        return f"{int(value)}"
+    return "-"
 
 # 格式化篩選器按鈕的高亮樣式 (Filter Buttons)
 def style_filter_button(label, value, filter_key):
@@ -245,7 +266,6 @@ school_df, article_df = load_data()
 # --- 主應用程式 ---
 if school_df is not None and article_df is not None:
 
-    # --- [START] 修正: col_map 必須包含所有需要查詢的欄位 ---
     col_map = {
         "g1_tests": "全年全科測驗次數_一年級", "g1_exams": "全年全科考試次數_一年級",
         "g1_diverse_assessment": "小一上學期以多元化的進展性評估代替測驗及考試",
@@ -254,11 +274,10 @@ if school_df is not None and article_df is not None:
         "no_test_after_holiday": "避免緊接在長假期後安排測考_讓學生在假期有充分的休息",
         "policy_on_web": "將校本課業政策上載至學校網頁_讓公眾及持份者知悉",
         "homework_policy": "制定適切的校本課業政策_讓家長了解相關安排_並定期蒐集教師_學生和家長的意見",
-        "diverse_learning_assessment": "多元學習評估", # <-- ADDED
-        "班級教學模式": "班級教學模式", # <-- ADDED
-        "分班安排": "分班安排"          # <-- ADDED
+        "diverse_learning_assessment": "多元學習評估",
+        "班級教學模式": "班級教學模式", 
+        "分班安排": "分班安排"          
     }
-    # --- [END] 修正 ---
 
     if not st.session_state.search_mode:
         
@@ -403,7 +422,7 @@ if school_df is not None and article_df is not None:
                 "homework_policy": "制定校本課業政策",
                 "班級教學模式": "班級教學模式",
                 "分班安排": "分班安排",
-                "diverse_learning_assessment": "多元學習評估" # 這裡的 key 必須是程式內部使用的，不是 display value
+                "diverse_learning_assessment": "多元學習評估" 
             }
             
             for index, row in filtered_schools.iterrows():
@@ -528,22 +547,32 @@ if school_df is not None and article_df is not None:
                         
                         st.markdown("##### 測驗與考試次數")
                         
-                        # Row 1: Headers (3欄網格)
-                        h1, h2, h3 = st.columns(3)
-                        with h2: st.markdown("##### 測驗次數")
-                        with h3: st.markdown("##### 考試次數")
-                        
-                        # Row 2: 一年級 (3欄網格 - 僅顯示數字)
-                        g1_1, g1_2, g1_3 = st.columns(3)
-                        with g1_1: st.markdown("**一年級**")
-                        with g1_2: display_assessment_count(row.get(col_map["g1_tests"])) # 僅顯示數字
-                        with g1_3: display_assessment_count(row.get(col_map["g1_exams"])) # 僅顯示數字
-                        
-                        # Row 3: 二至六年級 (3欄網格 - 僅顯示數字)
-                        g2_1, g2_2, g2_3 = st.columns(3)
-                        with g2_1: st.markdown("**二至六年級**")
-                        with g2_2: display_assessment_count(row.get(col_map["g2_6_tests"])) # 僅顯示數字
-                        with g2_3: display_assessment_count(row.get(col_map["g2_6_exams"])) # 僅顯示數字
+                        # Row 1: Headers - 使用 HTML Table 確保對齊
+                        # 注入 CSS 讓表格看起來沒有邊框 (已經在頂部定義)
+                        assessment_table_html = f"""
+                        <table class="clean-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 35%;"></th>
+                                    <th>測驗次數</th>
+                                    <th>考試次數</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>一年級</td>
+                                    <td>{display_assessment_count(row.get(col_map["g1_tests"]))}</td>
+                                    <td>{display_assessment_count(row.get(col_map["g1_exams"]))}</td>
+                                </tr>
+                                <tr>
+                                    <td>二至六年級</td>
+                                    <td>{display_assessment_count(row.get(col_map["g2_6_tests"]))}</td>
+                                    <td>{display_assessment_count(row.get(col_map["g2_6_exams"]))}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        """
+                        st.markdown(assessment_table_html, unsafe_allow_html=True)
                         
                         st.divider()
 
@@ -552,18 +581,18 @@ if school_df is not None and article_df is not None:
                         # 政策與教學模式 (2欄佈局)
                         c_policy1, c_policy2 = st.columns(2)
                         
-                        # Column 1 items (修正後的調用方式)
+                        # Column 1 items 
                         with c_policy1:
                             display_info(assessment_display_map["g1_diverse_assessment"], row.get(col_map["g1_diverse_assessment"]))
                             display_info(assessment_display_map["tutorial_session"], row.get(col_map["tutorial_session"]))
                             display_info(assessment_display_map["homework_policy"], row.get(col_map["homework_policy"]))
                             display_info(assessment_display_map["no_test_after_holiday"], row.get(col_map["no_test_after_holiday"]))
                             
-                        # Column 2 items (修正後的調用方式)
+                        # Column 2 items 
                         with c_policy2:
                             display_info(assessment_display_map["分班安排"], row.get(col_map["分班安排"]))
                             display_info(assessment_display_map["班級教學模式"], row.get(col_map["班級教學模式"]))
-                            display_info(assessment_display_map["diverse_learning_assessment"], row.get(col_map["diverse_learning_assessment"])) # <-- 修正 Key
+                            display_info(assessment_display_map["diverse_learning_assessment"], row.get(col_map["diverse_learning_assessment"]))
                             display_info(assessment_display_map["policy_on_web"], row.get(col_map["policy_on_web"]))
                             
                     # --- TAB 3: 師資概況 ---
