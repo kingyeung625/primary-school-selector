@@ -211,9 +211,12 @@ LABEL_MAP = {
 }
 
 def is_valid_data(value):
-    # 檢查是否為非空、非 NaN，且不是字串 'nan' 或 '-'
-    # 由於所有內容都是字串，我們只需要檢查是否為空字串或無效標記
-    return bool(value.strip()) and value.lower() not in ['nan', '-']
+    # 🚨 修正：在進行任何字串操作前，強制將值轉換為字串。
+    # 這可以避免 'float' object has no attribute 'strip' 錯誤，因為 numpy.nan 是 float 類型。
+    value_str = str(value).strip() 
+    
+    # 檢查是否為非空字串，且不是字串 'nan' 或 '-'
+    return bool(value_str) and value_str.lower() not in ['nan', '-']
 
 # 僅顯示評估數字（現簡化為顯示純文字）
 def display_assessment_count(value):
