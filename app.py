@@ -613,7 +613,7 @@ if school_df is not None and article_df is not None:
                 "no_test_after_holiday": "避免長假期後測考",
                 "policy_on_web": "網上校本課業政策",
                 "homework_policy": "制定校本課業政策",
-                "班級教學模式": "班級教學模式",
+                "班級教學模式": "班級教學模式", 
                 "分班安排": "分班安排",
                 "diverse_learning_assessment": "多元學習評估" 
             }
@@ -932,7 +932,7 @@ if school_df is not None and article_df is not None:
                         """
                         st.markdown(class_table_html, unsafe_allow_html=True)
 
-                    # --- 動態 TABS ---
+                    # --- 動態 TABS: 辦學理念與補充資料 (移除「其他補充資料」的遍歷邏輯) ---
                     tab_index = 5
                     if has_mission_data:
                         with tabs[tab_index]:
@@ -940,26 +940,8 @@ if school_df is not None and article_df is not None:
                             for col in other_categories["辦學理念"]:
                                 display_info(col, row.get(col))
                             
-                            st.divider()
-                            st.subheader("其他補充資料")
+                            # 由於已移除遍歷和顯示「其他補充資料」的邏輯，這裡不需要額外的檢查或分隔線。
                             
-                            # 建立排除列表 (已顯示的欄位)
-                            displayed_cols = set(fee_cols + teacher_stat_cols + list(other_categories["辦學理念"]) + facility_cols_counts + facility_cols_text + list(assessment_display_map.values()) + ["區域", "小一學校網", "資助類型", "學生性別", "創校年份", "宗教", "教學語言", "校車", "保姆車", "辦學團體", "校訓", "校長姓名", "校長稱謂", "校監_校管會主席姓名", "校監_校管會主席稱謂", "家長教師會", "舊生會_校友會", "一條龍中學", "直屬中學", "聯繫中學", "上課時間", "上課時間_", "放學時間", "午膳安排", "午膳時間", "午膳結束時間", "學校名稱", "學校地址", "學校電話", "學校傳真", "學校電郵", "學校網址", "學校佔地面積", "核准編制教師職位數目", "教師總人數", "上學年核准編制教師職位數目", "上學年教師總人數"])
-                            for i in range(1, 7):
-                                displayed_cols.add(f"上學年小{i}班數")
-                                displayed_cols.add(f"本學年小{i}班數")
-                            displayed_cols.add("上學年總班數")
-                            displayed_cols.add("本學年總班數")
-
-                            other_cols_exist = False
-                            for col_name in school_df.columns:
-                                if col_name not in displayed_cols:
-                                    value = row.get(col_name)
-                                    if is_valid_data(value):
-                                        display_info(col_name, value)
-                                        other_cols_exist = True
-                            if not other_cols_exist:
-                                st.info("沒有其他補充資料可顯示。")
                         tab_index += 1
                     
                     with tabs[tab_index]:
