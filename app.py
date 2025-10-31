@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import altair as alt # 導入 Altair 繪圖庫
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
@@ -120,7 +121,7 @@ def load_data():
             school_df['學校名稱'] = school_df['學校名稱'].str.replace(r'\s+', ' ', regex=True).str.strip()
 
         fee_columns = ["學費", "堂費", "家長教師會費"]
-        for col in fee_columns:
+        for col in fee_cols:
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
@@ -135,6 +136,7 @@ def load_data():
         for col in teacher_stat_cols:
             if col in school_df.columns:
                 # 增強清理：將欄位值強制轉為 string，移除 '%' 和其他非數字/小數點字符
+                # 關鍵修正: fillna(0) 確保所有 NaN 都變成 0，避免在圖表計算中出現 TypeError
                 school_df[col] = pd.to_numeric(
                     school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), 
                     errors='coerce'
@@ -196,6 +198,9 @@ LABEL_MAP = {
 }
 
 def is_valid_data(value):
+    # 對於百分比欄位，0 也是有效數據
+    if isinstance(value, (int, float)):
+        return True
     return pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']
 
 # 僅顯示評估數字
@@ -251,8 +256,12 @@ def display_info(label, value, is_fee=False):
         if "網頁" in label and "http" in val_str:
             st.markdown(f"**{display_label}：** [{value}]({value})")
             return 
-        elif "(%)" in display_label and isinstance(value, (int, float)):
-            display_value = f"{int(value)}%"
+        elif "(%)" in display_label:
+            # 修正百分比顯示邏輯：確保數字有效才顯示 %
+            if isinstance(value, (int, float)):
+                 display_value = f"{int(value)}%"
+            else:
+                 display_value = val_str # 如果是字串，直接顯示
         elif is_fee:
             if isinstance(value, (int, float)) and value > 0:
                 display_value = f"${int(value)}"
@@ -273,6 +282,7 @@ def display_info(label, value, is_fee=False):
         else:
             display_value = val_str
     
+    # 處理空/無效數據
     elif is_fee:
         if label in ["學費", "堂費", "家長教師會費"]:
              display_value = "$0"
@@ -285,9 +295,10 @@ def display_info(label, value, is_fee=False):
 
     st.markdown(f"**{display_label}：** {display_value}")
 
-# Function to create Pie Chart (Placeholder - NOT USED IN FINAL DISPLAY)
+# Function to create Pie Chart using Altair
 def create_pie_chart(df, title):
     import altair as alt
+    # 如果數據總和不到 100%，會自動填補空白
     chart = alt.Chart(df).mark_arc(outerRadius=120, innerRadius=50).encode(
         theta=alt.Theta("Percentage", stack=True),
         color=alt.Color("Category", legend=alt.Legend(title="分類")),
@@ -662,8 +673,12 @@ if school_df is not None and article_df is not None:
 
                         # 2. 教師團隊學歷 & 年資 (Pie Charts)
                         
+                        # 獲取並確保數據為有效數字
                         master_pct = row.get("碩士_博士或以上人數百分率")
                         bachelor_pct = row.get("學士人數百分率")
+                        y0_4_pct = row.get("0至4年年資人數百分率")
+                        y5_9_pct = row.get("5至9年年資人數百分率")
+                        y10_pct = row.get("10年年資或以上人數百分率")
                         
                         # 計算學歷其他/缺失百分比
                         calculated_sum_qualification = master_pct + bachelor_pct
@@ -679,10 +694,6 @@ if school_df is not None and article_df is not None:
                         }
                         df_qualification = pd.DataFrame(data_qualification)
                         df_qualification = df_qualification[df_qualification['Percentage'] > 0]
-                        
-                        y0_4_pct = row.get("0至4年年資人數百分率")
-                        y5_9_pct = row.get("5至9年年資人數百分率")
-                        y10_pct = row.get("10年年資或以上人數百分率")
                         
                         # 計算年資其他/缺失百分比
                         calculated_sum_experience = y0_4_pct + y5_9_pct + y10_pct
@@ -700,7 +711,25 @@ if school_df is not None and article_df is not None:
                         df_experience = pd.DataFrame(data_experience)
                         df_experience = df_experience[df_experience['Percentage'] > 0]
                         
-                        # Display Charts Side-by-Side (只在確認資料正確後使用，此處先不繪製)
+                        # Display Charts Side-by-Side
+                        c_chart1, c_chart2 = st.columns(2)
+                        
+                        # 只有在數據有效時才嘗試繪圖
+                        if not df_qualification.empty:
+                            with c_chart1:
+                                st.altair_chart(create_pie_chart(df_qualification, "學歷分佈"), use_container_width=True)
+                        else:
+                            with c_chart1:
+                                st.info("學歷分佈數據不足。")
+                                
+                        if not df_experience.empty:
+                            with c_chart2:
+                                st.altair_chart(create_pie_chart(df_experience, "年資分佈"), use_container_width=True)
+                        else:
+                            with c_chart2:
+                                st.info("年資分佈數據不足。")
+                        
+                        st.divider()
                         
                         # 3. 詳細百分比列表 (文字顯示)
                         st.markdown("##### 詳細數據與培訓")
