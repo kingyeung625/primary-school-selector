@@ -612,11 +612,11 @@ if school_df is not None and article_df is not None:
             else:
                 
                 for index, row in filtered_schools.iterrows():
-                    # 🚨 修正 NameError: 將 has_mission_data 的判斷移到迴圈內 (因為 row 是在迴圈內定義的)
+                    # 判斷是否有辦學理念資料
                     has_mission_data = any(is_valid_data(row.get(col)) for col in all_philosophy_cols)
                     
                     # 建立 tabs 列表
-                    tab_list = ["基本資料", "學業評估與校園生活", "師資概況", "學校設施", "班級結構"] # 🚨 重命名
+                    tab_list = ["基本資料", "學業評估與校園生活", "師資概況", "學校設施", "班級結構"]
                     if has_mission_data:
                         tab_list.append("辦學理念") 
                     tab_list.append("聯絡資料")
