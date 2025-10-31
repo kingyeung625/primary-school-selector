@@ -128,7 +128,7 @@ LABEL_MAP = {
 def is_valid_data(value):
     return pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']
 
-# 格式化篩選器按鈕的高亮樣式
+# 格式化篩選器按鈕的高亮樣式 (Filter Buttons)
 def style_filter_button(label, value, filter_key):
     is_selected = st.session_state[filter_key] == value
     style = """
@@ -209,38 +209,62 @@ def display_info(label, value, is_fee=False):
 
     st.markdown(f"**{display_label}：** {display_value}")
     
-# 格式化詳細資料頁面切換按鈕的高亮樣式
-def style_detail_button(label, school_key, current_detail_view):
-    is_selected = current_detail_view == label
+# 格式化詳細資料頁面切換按鈕 (Detail Buttons)
+def render_detail_buttons(school_key, current_detail_view, views_list):
     
-    # --- CSS 調整: 縮小按鈕尺寸和間距 ---
-    # 這裡使用 st.markdown 嵌入 CSS 來調整按鈕的樣式
-    st.markdown(f"""
+    button_html = ""
+    
+    # --- CSS for Flexible, Compact Layout ---
+    # 使用 flex-wrap 實現自動換行，使用 margin 減少間距
+    st.markdown("""
         <style>
-            /* 針對整個按鈕容器的樣式 */
-            div[data-testid*="{school_key}_detail_btn_{label}"] > button {{
-                padding: 4px 8px; /* 縮小內邊距 */
-                margin: 2px 2px; /* 縮小外邊距 */
-                line-height: 1; /* 減少行高 */
-                font-size: 14px; /* 調整字體大小 */
-                height: auto; /* 讓高度貼合內容 */
-                border: 1px solid #1abc9c;
-                white-space: nowrap; /* 防止按鈕內的文字換行 */
-            }}
-            /* 調整按鈕被點擊時的顏色 */
-            div[data-testid*="{school_key}_detail_btn_{label}"] > button:focus:not(:active) {{
-                background-color: #1abc9c !important;
-                color: white !important;
-            }}
+        .flex-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px; /* 統一按鈕間距 */
+            margin-bottom: 10px;
+        }
+        .flex-container .stButton {
+            /* 覆蓋 Streamlit 預設的寬度，讓按鈕只佔據文字寬度 */
+            width: auto !important; 
+            margin: 0 !important;
+        }
+        .flex-container .stButton > button {
+            padding: 4px 8px; /* 縮小內邊距 */
+            font-size: 14px;
+            border-radius: 4px;
+            white-space: nowrap; /* 防止按鈕文字換行 */
+        }
         </style>
     """, unsafe_allow_html=True)
-    # --- END CSS 調整 ---
+    # --- END CSS ---
 
-    button_type = "primary" if is_selected else "secondary"
+    # 使用一個空容器來容納所有按鈕
+    button_container = st.empty()
     
-    if st.button(label, type=button_type, key=f"{school_key}_detail_btn_{label}"):
-        st.session_state.detail_view_per_school[school_key] = label
-        st.rerun()
+    # 建立按鈕 HTML
+    for view in views_list:
+        is_selected = current_detail_view == view
+        button_class = "stButton-primary" if is_selected else "stButton-secondary"
+        
+        # 建立按鈕的唯一 ID 和觸發事件
+        button_id = f"{school_key}_detail_btn_{view}"
+        
+        # Streamlit 按鈕必須在 Python 語境中渲染
+        if st.button(view, type="primary" if is_selected else "secondary", key=button_id):
+            st.session_state.detail_view_per_school[school_key] = view
+            st.rerun()
+            
+    # 將所有按鈕放在一個 flex 容器中，以應用 CSS 效果
+    # 這是 Streamlit 繞過其預設佈局限制的常見技巧
+    st.markdown("<div class='flex-container'>", unsafe_allow_html=True)
+    # 由於 st.button 已經在上面的 loop 中渲染，我們需要使用一個技巧來讓它們進入 flex 容器。
+    # 最簡單的方法是將按鈕包裹在一個 st.columns 結構中，但這會回到舊問題。
+    # 為了實現真正的 flex，我們只能依賴 Streamlit 容器的繼承行為。
+    # 由於我們不能直接控制 st.button 的 DIV 結構，我們將依賴於 CSS 覆蓋。
+    # 我們在上面的 loop 已經渲染了按鈕，所以現在只需要確保它們能受益於 .flex-container 的樣式。
+    st.markdown("</div>", unsafe_allow_html=True)
+
 
 # --- [END] 輔助函數 ---
 
@@ -442,18 +466,45 @@ if school_df is not None and article_df is not None:
                         
                     current_detail_view = st.session_state.detail_view_per_school[school_key]
                     
-                    # 使用 2 欄佈局來實現手機上的緊湊堆疊
-                    cols = st.columns(2)
-                    col_index = 0
+                    # 使用 HTML/CSS 實現真正的彈性佈局
+                    st.markdown('<div class="flex-container">', unsafe_allow_html=True)
                     
                     for view in current_detail_views:
-                        with cols[col_index % 2]: # 將按鈕分配給兩欄
-                            is_selected = current_detail_view == view
-                            
-                            # 應用尺寸和間距的 CSS 調整
-                            style_detail_button(view, school_key, current_detail_view)
+                        is_selected = current_detail_view == view
+                        button_type = "primary" if is_selected else "secondary"
                         
-                        col_index += 1
+                        # 渲染按鈕
+                        if st.button(view, type=button_type, key=f"{school_key}_detail_btn_{view}"):
+                            st.session_state.detail_view_per_school[school_key] = view
+                            st.rerun()
+
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    # 這是必需的 CSS 覆蓋，讓 Streamlit 的 DIVs 行為像 inline-flex 元素
+                    # 這裡將 CSS 移至一個全域範圍，避免重複渲染問題
+                    st.markdown("""
+                        <style>
+                            /* 覆蓋 Streamlit 預設按鈕外層 DIV 的行為 */
+                            .stButton {
+                                margin: 0 4px 4px 0 !important; /* 減少按鈕之間的垂直和水平間距 */
+                                width: auto !important; /* 讓容器寬度自適應 */
+                                display: inline-block !important; /* 讓按鈕並排 */
+                            }
+                            /* 讓所有按鈕容器能夠自動換行 */
+                            div[data-testid="stVerticalBlock"] > div > div > div:nth-child(2) {
+                                display: flex;
+                                flex-wrap: wrap;
+                                gap: 0px; /* 消除內建間隙 */
+                            }
+                            /* 針對實際的按鈕元素進行尺寸調整 */
+                            .stButton > button {
+                                padding: 4px 8px; /* 縮小內邊距，等同字體大小 */
+                                font-size: 14px;
+                                height: auto;
+                                min-height: 0px;
+                            }
+                        </style>
+                    """, unsafe_allow_html=True)
                     
                     st.divider()
                     # --- [END] 按鈕切換區 ---
