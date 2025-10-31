@@ -5,7 +5,7 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示及表格樣式 ---
+# --- 注入 CSS 實現 Tab 滾動提示、表格樣式及側邊欄按鈕優化 ---
 st.markdown("""
     <style>
     /* 1. 基本容器設置 */
@@ -70,6 +70,29 @@ st.markdown("""
         display: block; 
         margin-bottom: 2px;
         color: #333;
+    }
+
+    /* 6. 側邊欄展開/摺疊按鈕優化 */
+    /* 針對側邊欄展開按鈕 (通常在左上角) */
+    button[data-testid="baseButton-headerNoPadding"] {
+        color: #1abc9c !important; /* 強制設定為綠色 */
+        font-size: 1.5rem; /* 增大圖標尺寸 */
+        opacity: 1 !important; /* 確保它不會淡化 */
+        transition: color 0.2s;
+    }
+    
+    /* 針對側邊欄摺疊按鈕 (在側邊欄內部) */
+    button[data-testid="stSidebarCloseButton"] {
+        color: #e74c3c !important; /* 設為紅色，更醒目 */
+        font-size: 1.5rem; /* 增大圖標尺寸 */
+        opacity: 1 !important;
+        transition: color 0.2s;
+    }
+    
+    /* 鼠標懸停效果 */
+    button[data-testid="baseButton-headerNoPadding"]:hover,
+    button[data-testid="stSidebarCloseButton"]:hover {
+        color: #3498db !important; /* 懸停時變為藍色 */
     }
     </style>
 """, unsafe_allow_html=True)
