@@ -5,19 +5,17 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示 (移除箭頭/陰影) ---
+# --- 注入 CSS 實現 Tab 滾動提示及表格樣式 ---
 st.markdown("""
     <style>
     /* 1. 基本容器設置 */
     div[data-testid="stTabs"] {
         position: relative;
-        overflow-x: auto; /* 確保內容可以滾動 */
-        padding-bottom: 5px; /* 留出空間 */
-        /* 隱藏預設滾動條 */
+        overflow-x: auto; 
+        padding-bottom: 5px; 
         -ms-overflow-style: none;
         scrollbar-width: none;
     }
-    /* 隱藏 Chrome/Safari 滾動條 */
     div[data-testid="stTabs"] > div:first-child::-webkit-scrollbar {
         display: none;
     }
@@ -28,35 +26,52 @@ st.markdown("""
         display: none;
     }
     
-    /* 3. HTML 表格樣式 (確保邊框透明，適合內容區) */
+    /* 3. HTML 表格基本樣式 (通用於所有clean-table) */
     .clean-table {
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 1em;
-        table-layout: auto; /* 允許瀏覽器自適應，但在流動版會保持對齊 */
+        table-layout: auto; 
         min-width: 400px; /* 確保在手機上仍有最小寬度以保持對齊 */
     }
     .clean-table th, .clean-table td {
         padding: 8px 12px;
         text-align: left;
-        border: none; /* 移除所有邊框 */
+        border: none; 
         border-bottom: 1px solid #eee; /* 增加行分隔線 */
+        vertical-align: top;
     }
     .clean-table th {
         font-weight: 600;
         background-color: #f7f7f7;
         border-bottom: 2px solid #ccc; /* 標題下雙分隔線 */
     }
-    .clean-table td:nth-child(1) {
-        font-weight: bold; /* 讓第一欄文字粗體顯示 */
-        width: 35%; /* 確保第一欄寬度足夠 */
-    }
-    /* 班級結構表格的寬度優化 */
+    
+    /* 4. 測驗次數/班級結構 表格樣式優化 */
     .clean-table.class-table td:nth-child(n+2), .clean-table.class-table th:nth-child(n+2) {
         text-align: center;
     }
-    .clean-table.class-table td:nth-child(1) {
-        width: 25%;
+    .clean-table.class-table td:nth-child(1), .clean-table.assessment-table td:nth-child(1) {
+        font-weight: bold; /* 讓第一欄文字粗體顯示 */
+        width: 30%; /* 確保第一欄寬度足夠 */
+    }
+
+    /* 5. 課業及教學政策 表格樣式 (4欄結構) */
+    .clean-table.policy-table {
+        margin-top: 15px;
+    }
+    .clean-table.policy-table td {
+        padding: 8px 6px; 
+        border-bottom: 1px solid #eee; 
+    }
+    /* 標籤 (1, 3欄) */
+    .clean-table.policy-table td:nth-child(2n+1) {
+        font-weight: bold; 
+        width: 25%; 
+    }
+    /* 內容 (2, 4欄) */
+    .clean-table.policy-table td:nth-child(2n) {
+        width: 25%; 
     }
     </style>
 """, unsafe_allow_html=True)
@@ -180,10 +195,9 @@ LABEL_MAP = {
 def is_valid_data(value):
     return pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']
 
-# --- [NEW FUNCTION] 僅顯示評估數字 ---
+# 僅顯示評估數字
 def display_assessment_count(value):
     if is_valid_data(value) and isinstance(value, (int, float)):
-        # 僅顯示數字，不顯示標籤
         return f"{int(value)}"
     return "-"
 
@@ -457,7 +471,7 @@ if school_df is not None and article_df is not None:
 
                     tabs = st.tabs(tab_list)
 
-                    # --- TAB 1: 基本資料 ---
+                    # --- TAB 1: 基本資料 (保持不變) ---
                     with tabs[0]:
                         st.subheader("學校基本資料")
                         # 佈局基於 DOCX 格式
@@ -555,13 +569,12 @@ if school_df is not None and article_df is not None:
                         
                         st.markdown("##### 測驗與考試次數")
                         
-                        # Row 1: Headers - 使用 HTML Table 確保對齊
-                        # 注入 CSS 讓表格看起來沒有邊框 (已經在頂部定義)
+                        # 測驗與考試次數 - HTML Table (已修正)
                         assessment_table_html = f"""
-                        <table class="clean-table">
+                        <table class="clean-table assessment-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 35%;"></th>
+                                    <th></th>
                                     <th>測驗次數</th>
                                     <th>考試次數</th>
                                 </tr>
@@ -586,24 +599,58 @@ if school_df is not None and article_df is not None:
 
                         st.markdown("##### 課業及教學政策")
                         
-                        # 政策與教學模式 (2欄佈局)
-                        c_policy1, c_policy2 = st.columns(2)
-                        
-                        # Column 1 items 
-                        with c_policy1:
-                            display_info(assessment_display_map["g1_diverse_assessment"], row.get(col_map["g1_diverse_assessment"]))
-                            display_info(assessment_display_map["tutorial_session"], row.get(col_map["tutorial_session"]))
-                            display_info(assessment_display_map["homework_policy"], row.get(col_map["homework_policy"]))
-                            display_info(assessment_display_map["no_test_after_holiday"], row.get(col_map["no_test_after_holiday"]))
+                        # 政策與教學模式 (HTML Table - 已修正為響應式 4欄結構)
+                        # 1. 定義欄位順序 (與原 st.columns 保持一致的垂直流向)
+                        left_fields = [
+                            col_map["g1_diverse_assessment"],
+                            col_map["tutorial_session"],
+                            col_map["homework_policy"],
+                            col_map["no_test_after_holiday"],
+                        ]
+                        right_fields = [
+                            col_map["分班安排"],
+                            col_map["班級教學模式"],
+                            col_map["diverse_learning_assessment"],
+                            col_map["policy_on_web"],
+                        ]
+                        # 定義顯示標籤
+                        left_labels = [assessment_display_map[k] for k in ["g1_diverse_assessment", "tutorial_session", "homework_policy", "no_test_after_holiday"]]
+                        right_labels = [assessment_display_map[k] for k in ["分班安排", "班級教學模式", "diverse_learning_assessment", "policy_on_web"]]
+
+                        # 2. 建立 HTML 內容
+                        policy_table_html = """
+                        <table class="clean-table policy-table">
+                            <tbody>
+                        """
+                        # 3. 循環生成 4 行 4 欄 (Label, Value, Label, Value)
+                        for i in range(4):
                             
-                        # Column 2 items 
-                        with c_policy2:
-                            display_info(assessment_display_map["分班安排"], row.get(col_map["分班安排"]))
-                            display_info(assessment_display_map["班級教學模式"], row.get(col_map["班級教學模式"]))
-                            display_info(assessment_display_map["diverse_learning_assessment"], row.get(col_map["diverse_learning_assessment"]))
-                            display_info(assessment_display_map["policy_on_web"], row.get(col_map["policy_on_web"]))
+                            # 獲取左側數據並處理換行符
+                            left_key = left_fields[i]
+                            left_label = left_labels[i]
+                            left_value = str(row.get(left_key, "沒有")).replace('\n', '<br>')
                             
-                    # --- TAB 3: 師資概況 ---
+                            # 獲取右側數據並處理換行符
+                            right_key = right_fields[i]
+                            right_label = right_labels[i]
+                            right_value = str(row.get(right_key, "沒有")).replace('\n', '<br>')
+                            
+                            policy_table_html += f"""
+                                <tr>
+                                    <td>{left_label}</td>
+                                    <td>{left_value}</td>
+                                    <td>{right_label}</td>
+                                    <td>{right_value}</td>
+                                </tr>
+                            """
+                            
+                        policy_table_html += """
+                            </tbody>
+                        </table>
+                        """
+                        st.markdown(policy_table_html, unsafe_allow_html=True)
+                            
+                    # --- TAB 3: 師資概況 (保持不變) ---
                     with tabs[2]:
                         st.subheader("師資概況")
                         sub_cols = st.columns(3)
@@ -615,7 +662,7 @@ if school_df is not None and article_df is not None:
                         st.divider()
                         display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
 
-                    # --- TAB 4: 學校設施 ---
+                    # --- TAB 4: 學校設施 (保持不變) ---
                     with tabs[3]:
                         st.subheader("設施數量")
                         c1, c2, c3, c4 = st.columns(4)
@@ -637,7 +684,7 @@ if school_df is not None and article_df is not None:
                         last_year_data = [row.get(f"上學年{g}班數", 0) for g in grades_internal]
                         this_year_data = [row.get(f"本學年{g}班數", 0) for g in grades_internal]
                         
-                        # --- [NEW] 使用 HTML 表格替換 st.table 以確保響應式對齊 ---
+                        # 班級結構 - HTML Table (已修正)
                         class_table_html = f"""
                         <table class="clean-table class-table">
                             <thead>
