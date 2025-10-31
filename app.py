@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-# Removed: import altair as alt # <-- 已移除 Altair 庫
+import altair as alt # <-- 確保 altair 庫已匯入並使用別名 alt
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
@@ -95,20 +95,6 @@ st.markdown("""
     button[data-testid="stSidebarCloseButton"]:hover {
         color: #3498db !important; /* 懸停時變為藍色 */
     }
-    /* 新增：統一表格樣式，將數據欄置中 */
-    .info-table th, .info-table td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: left;
-    }
-    .info-table td:nth-child(2) {
-        text-align: center;
-        font-weight: bold;
-    }
-    .info-table th {
-        background-color: #f2f2f2;
-        font-weight: 600;
-    }
     </style>
 """, unsafe_allow_html=True)
 # --- 注入 CSS 結束 ---
@@ -178,7 +164,7 @@ def load_data():
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
-        # === 解決方案：新增教師人數欄位轉換邏輯 START (修復讀取問題) ===
+        # === 解決方案：教師人數欄位轉換邏輯 (修復讀取問題) ===
         teacher_count_cols_all = ["核准編制教師職位數目", "教師總人數", "上學年核准編制教師職位數目", "上學年教師總人數"] 
         
         for col in teacher_count_cols_all:
