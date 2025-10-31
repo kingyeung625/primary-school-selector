@@ -260,6 +260,7 @@ LABEL_MAP = {
 }
 
 def is_valid_data(value):
+    # 檢查是否為非空、非 NaN，且不是字串 'nan' 或 '-'
     return pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']
 
 # 僅顯示評估數字
@@ -330,8 +331,7 @@ def display_info(label, value, is_fee=False):
             else:
                 display_value = val_str
         elif is_time_field:
-            # 💡 調整時間格式化邏輯以處理各種時間字串（包括 AM/PM 或完整的時分秒）
-            # 我們直接顯示清理後的字串，以確保所有有效時間格式都能呈現。
+            # 💡 時間格式化邏輯：直接顯示清理後的字串 (與午膳結束時間保持一致)
             display_value = val_str
         else:
             # 處理所有非百分比的數字欄位 (包括修復後的教師人數)
@@ -705,25 +705,27 @@ if school_df is not None and article_df is not None:
                         st.divider()
                         st.subheader("上學、午膳及交通安排")
                         
-                        # --- [修改區 START]：新增上學時間、放學時間、午膳開始時間 ---
-                        
                         # 第一排：上學時間 & 放學時間
                         c_time1, c_time2 = st.columns(2)
                         with c_time1:
-                            display_info("上課時間_", row.get("上課時間_")) # 對應 CC 欄 (一般上學時間)
+                            # 一般上學時間 (CC 欄)
+                            display_info("上課時間_", row.get("上課時間_")) 
                         with c_time2:
-                            display_info("放學時間", row.get("放學時間")) # 對應 CD 欄 (一般放學時間)
+                            # 一般放學時間 (CD 欄)
+                            display_info("放學時間", row.get("放學時間")) 
                         
                         # 第二排：午膳安排 & 午膳時間
                         c_lunch1, c_lunch2 = st.columns(2)
                         with c_lunch1:
                             display_info("午膳安排", row.get("午膳安排"))
                         with c_lunch2:
-                            display_info("午膳時間", row.get("午膳時間")) # 對應 CE 欄 (午膳開始時間)
+                            # 午膳開始時間 (CE 欄)
+                            display_info("午膳時間", row.get("午膳時間")) 
 
                         # 第三排：午膳結束時間 & 交通安排
                         c_lunch_end, c_transport = st.columns(2)
                         with c_lunch_end:
+                            # 午膳結束時間 (CF 欄)
                             display_info("午膳結束時間", row.get("午膳結束時間"))
                         with c_transport:
                             # 校車/保姆車
@@ -734,8 +736,6 @@ if school_df is not None and article_df is not None:
                             elif has_van: transport_status = "有保姆車"
                             display_info("校車或保姆車", transport_status)
                             
-                        # --- [修改區 END] ---
-
                         st.divider()
                         st.subheader("費用")
                         
