@@ -22,9 +22,32 @@ st.markdown("""
         display: none;
     }
 
-    /* 2. 移除所有箭頭/陰影提示 */
-    div[data-testid="stTabs"]::after, div[data-testid="stTabs"]::before {
-        content: none; 
+    /* 2. 創建右側箭頭提示 (>> 符號) - 恢復視覺提示 */
+    div[data-testid="stTabs"]::after {
+        content: '>>'; 
+        position: absolute;
+        top: 0;
+        right: 0;
+        height: 100%;
+        width: 35px; /* 提示區寬度 */
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 5px;
+        font-weight: bold;
+        font-size: 1.2em; /* 讓箭頭更明顯 */
+        color: #1abc9c; /* 顏色與按鈕風格一致 */
+        
+        /* 使用漸變色，從不透明的白色開始，使其有強烈的遮擋感 */
+        background: linear-gradient(to left, rgba(255, 255, 255, 1) 40%, rgba(255, 255, 255, 0) 100%);
+        
+        pointer-events: none; /* 讓箭頭不阻擋點擊 Tab */
+        z-index: 10;
+    }
+    
+    /* 確保左側箭頭也被移除 (如果之前有定義的話) */
+    div[data-testid="stTabs"]::before {
+        content: none;
         display: none;
     }
     
@@ -516,43 +539,45 @@ if school_df is not None and article_df is not None:
                     with tabs[1]:
                         st.subheader("學業評估與安排")
                         
-                        # 測驗與考試次數 (3欄佈局)
-                        c_header1, c_header2, c_header3 = st.columns(3)
-                        with c_header2: st.markdown("**測驗次數**")
-                        with c_header3: st.markdown("**考試次數**")
+                        st.markdown("##### 測驗與考試次數")
                         
-                        # 一年級
-                        c_g1_1, c_g1_2, c_g1_3 = st.columns(3)
-                        with c_g1_1: st.markdown("**一年級**")
-                        with c_g1_2: display_info("全年全科測驗次數_一年級", row.get(col_map["g1_tests"]))
-                        with c_g1_3: display_info("全年全科考試次數_一年級", row.get(col_map["g1_exams"]))
+                        # Row 1: Headers (3欄網格)
+                        h1, h2, h3 = st.columns(3)
+                        with h2: st.markdown("##### 測驗次數")
+                        with h3: st.markdown("##### 考試次數")
                         
-                        # 二至六年級
-                        c_g2_1, c_g2_2, c_g2_3 = st.columns(3)
-                        with c_g2_1: st.markdown("**二至六年級**")
-                        with c_g2_2: display_info("全年全科測驗次數_二至六年級", row.get(col_map["g2_6_tests"]))
-                        with c_g2_3: display_info("全年全科考試次數_二至六年級", row.get(col_map["g2_6_exams"]))
+                        # Row 2: 一年級 (3欄網格)
+                        g1_1, g1_2, g1_3 = st.columns(3)
+                        with g1_1: st.markdown("**一年級**")
+                        with g1_2: display_info("全年全科測驗次數_一年級", row.get(col_map["g1_tests"]))
+                        with g1_3: display_info("全年全科考試次數_一年級", row.get(col_map["g1_exams"]))
+                        
+                        # Row 3: 二至六年級 (3欄網格)
+                        g2_1, g2_2, g2_3 = st.columns(3)
+                        with g2_1: st.markdown("**二至六年級**")
+                        with g2_2: display_info("全年全科測驗次數_二至六年級", row.get(col_map["g2_6_tests"]))
+                        with g2_3: display_info("全年全科考試次數_二至六年級", row.get(col_map["g2_6_exams"]))
                         
                         st.divider()
+
+                        st.markdown("##### 課業及教學政策")
                         
                         # 政策與教學模式 (2欄佈局)
-                        st.subheader("課業及教學政策")
                         c_policy1, c_policy2 = st.columns(2)
                         
-                        # 第一欄
+                        # Column 1 items (政策類)
                         with c_policy1:
                             display_info("小一上學期多元化評估", row.get(col_map["g1_diverse_assessment"]))
-                            display_info("避免長假期後測考", row.get(col_map["no_test_after_holiday"]))
+                            display_info("下午設導修課", row.get(col_map["tutorial_session"]))
                             display_info("網上校本課業政策", row.get(col_map["policy_on_web"]))
                             display_info("制定校本課業政策", row.get(col_map["homework_policy"]))
-                        
-                        # 第二欄
+                            
+                        # Column 2 items (教學/其他類)
                         with c_policy2:
-                            display_info("下午設導修課", row.get(col_map["tutorial_session"]))
+                            display_info("避免長假期後測考", row.get(col_map["no_test_after_holiday"]))
                             display_info("分班安排", row.get(col_map["分班安排"]))
                             display_info("班級教學模式", row.get(col_map["班級教學模式"]))
-                            display_info("多元學習評估", row.get(col_map["多元學習評估"]))
-
+                            display_info("多元學習評估", row.get(col_map["diverse_learning_assessment"]))
 
                     # --- TAB 3: 師資概況 ---
                     with tabs[2]:
