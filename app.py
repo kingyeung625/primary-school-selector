@@ -274,13 +274,14 @@ def display_info(label, value, is_fee=False):
     if is_valid_data(value):
         val_str = str(value)
         # 檢查是否為百分比欄位 (通過檢查LABEL_MAP中對應的key是否包含"百分率")
-        is_percentage_field = any(k == label and '百分率' in k for k in LABEL_MAP)
+        # 由於 LABEL_MAP 中已經去掉了 "%"，這裡需要檢查原始 key 是否包含 "百分率"
+        is_percentage_field = '百分率' in label 
         
         if "網頁" in label and "http" in val_str:
             st.markdown(f"**{display_label}：** [{value}]({value})")
             return 
         elif is_percentage_field and isinstance(value, (int, float)):
-            # 這裡不顯示 %, 因為圖表標籤不應顯示
+            # 文本顯示中不帶 %, 僅數字
             display_value = f"{value:.1f}"
         elif is_fee:
             if isinstance(value, (int, float)) and value > 0:
@@ -771,13 +772,14 @@ if school_df is not None and article_df is not None:
 
                         # 1. 準備學歷及培訓數據
                         qual_data = {
-                            # 使用 LABEL_MAP 的友好名稱，且沒有 (%) 
+                            # 類別名稱使用 LABEL_MAP 且不帶 %
                             '類別': [
                                 LABEL_MAP.get("已接受師資培訓人數百分率"), 
                                 LABEL_MAP.get("學士人數百分率"), 
                                 LABEL_MAP.get("碩士／博士或以上人數百分率"), 
                                 LABEL_MAP.get("特殊教育培訓人數百分率")
                             ],
+                            # 數值使用原始欄位名稱
                             '百分比': [
                                 row.get("已接受師資培訓人數百分率", 0),
                                 row.get("學士人數百分率", 0),
@@ -821,12 +823,13 @@ if school_df is not None and article_df is not None:
 
                         # 3. 準備年資數據
                         seniority_data = {
-                            # 使用 LABEL_MAP 的友好名稱，且沒有 (%)
+                            # 類別名稱使用 LABEL_MAP 且不帶 %
                             '年資': [
                                 LABEL_MAP.get("0至4年年資人數百分率"), 
                                 LABEL_MAP.get("5至9年年資人數百分率"), 
                                 LABEL_MAP.get("10年年資或以上人數百分率")
                             ],
+                            # 數值使用原始欄位名稱
                             '百分比': [
                                 row.get("0至4年年資人數百分率", 0),
                                 row.get("5至9年年資人數百分率", 0),
