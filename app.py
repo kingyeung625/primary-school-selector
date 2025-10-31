@@ -733,7 +733,7 @@ if school_df is not None and article_df is not None:
                         for col_key in fee_cols:
                             display_info(col_key, row.get(col_key), is_fee=True)
                         
-                    # --- TAB 2: 學業評估與安排 ---
+                    # --- TAB 2: 學業評估與安排 (保持不變) ---
                     with tabs[1]:
                         st.subheader("學業評估與安排")
                         
@@ -802,6 +802,8 @@ if school_df is not None and article_df is not None:
                     # --- TAB 3: 師資概況 (已修復 NameError 並使用 HTML 表格重組) ---
                     with tabs[2]:
                         st.subheader("師資團隊數字")
+                        
+                        # 1. 師資團隊數字 (Numbers)
                         c1, c2 = st.columns(2)
                         with c1:
                             # 使用 CSV 實際名稱
@@ -810,79 +812,64 @@ if school_df is not None and article_df is not None:
                             display_info("教師總人數", row.get("教師總人數"))
 
                         st.divider()
+                        st.subheader("教師團隊學歷及年資") 
                         
-                        # === 教師團隊學歷及年資：HTML 表格顯示 START ===
-                        
-                        col_qual, col_seniority = st.columns(2)
+                        col_left, col_right = st.columns(2)
 
-                        # 1. 教師團隊學歷及培訓 表格
+                        # --- 1. ACADEMICS/TRAINING DATA GENERATION ---
                         qual_cols_map = {
                             "已接受師資培訓人數百分率": "已接受師資培訓", 
                             "學士人數百分率": "學士學位", 
                             "碩士／博士或以上人數百分率": "碩士/博士學位", 
                             "特殊教育培訓人數百分率": "特殊教育培訓"
                         }
-                        
-                        qual_table_html = """
-                        <div style="font-weight: bold; margin-bottom: 8px;">教師團隊學歷及培訓</div>
-                        <table class="info-table">
-                            <thead>
-                                <tr>
-                                    <th>類別</th>
-                                    <th>百分比</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                        """
+                        qual_rows_html = ""
                         for col_name, display_label in qual_cols_map.items():
                             value = row.get(col_name, 0)
                             # 格式化為 X.X%
-                            display_value = f"{value:.1f}%"
-                            qual_table_html += f"""
-                                <tr>
-                                    <td>{display_label}</td>
-                                    <td>{display_value}</td>
-                                </tr>
-                            """
-                        qual_table_html += "</tbody></table>"
-
-                        # 2. 教師團隊年資分佈 表格
+                            display_value = f"{value:.1f}％"
+                            # Note: The HTML must be generated inline with minimal Python indentation
+                            qual_rows_html += f"""
+<tr>
+    <td>{display_label}</td>
+    <td>{display_value}</td>
+</tr>
+"""
+                        
+                        # --- 2. SENIORITY DATA GENERATION ---
                         seniority_cols_map = {
                             "0至4年年資人數百分率": "0-4年年資", 
                             "5至9年年資人數百分率": "5-9年年資", 
                             "10年年資或以上人數百分率": "10+年年資"
                         }
-
-                        seniority_table_html = """
-                        <div style="font-weight: bold; margin-bottom: 8px;">教師團隊年資分佈</div>
-                        <table class="info-table">
-                            <thead>
-                                <tr>
-                                    <th>年資</th>
-                                    <th>百分比</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                        """
+                        seniority_rows_html = ""
                         for col_name, display_label in seniority_cols_map.items():
                             value = row.get(col_name, 0)
                             # 格式化為 X.X%
-                            display_value = f"{value:.1f}%"
-                            seniority_table_html += f"""
-                                <tr>
-                                    <td>{display_label}</td>
-                                    <td>{display_value}</td>
-                                </tr>
-                            """
-                        seniority_table_html += "</tbody></table>"
-                        
-                        # 將兩個表格並排放置
-                        with col_qual:
-                            st.markdown(qual_table_html, unsafe_allow_html=True)
-                        with col_seniority:
-                            st.markdown(seniority_table_html, unsafe_allow_html=True)
-                        
-                        # === 教師團隊學歷及年資：HTML 表格顯示 END ===
+                            display_value = f"{value:.1f}％"
+                            seniority_rows_html += f"""
+<tr>
+    <td>{display_label}</td>
+    <td>{display_value}</td>
+</tr>
+"""
+
+                        # Combine and display
+                        with col_left:
+                            st.markdown(f"""
+                                <div style="font-weight: bold; margin-bottom: 8px;">學歷及培訓</div>
+                                <table class="info-table">
+                                    {qual_rows_html}
+                                </table>
+                            """, unsafe_allow_html=True)
+                            
+                        with col_right:
+                             st.markdown(f"""
+                                <div style="font-weight: bold; margin-bottom: 8px;">年資分佈</div>
+                                <table class="info-table">
+                                    {seniority_rows_html}
+                                </table>
+                            """, unsafe_allow_html=True)
 
                         st.divider()
                         display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
