@@ -263,7 +263,7 @@ LABEL_MAP = {
     "校風": "校風",
     "學校發展計劃": "學校發展計劃",
     "學校管理架構": "學校管理架構",
-    "法團校董會_校管會_校董會": "法團校董會/校管會/校董會", # 保持這個名稱
+    "法團校董會_校管會_校董會": "法團校董會/校管會/校董會",
     "學校特色_其他": "其他學校特色",
     "課程剪裁及調適措施": "課程剪裁及調適措施",
     "正確價值觀_態度和行為的培養": "正確價值觀、態度和行為的培養",
@@ -584,7 +584,7 @@ if school_df is not None and article_df is not None:
     # --- 4. 搜尋結果區 ---
     if not st.session_state.filtered_schools.empty:
         
-        # --- 內容組織變數定義 (移到迴圈外) ---
+        # --- 內容組織變數定義 ---
         fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用", "學費減免"]
         teacher_stat_cols = [
             "已接受師資培訓人數百分率", "學士人數百分率", "碩士／博士或以上人數百分率", 
@@ -598,7 +598,6 @@ if school_df is not None and article_df is not None:
         
         
         # 主分類 6: 辦學理念 (更新欄位列表, 移除被移動的)
-        # 注意：法團校董會_校管會_校董會 已被移到基本資料
         philosophy_display_cols = ["辦學宗旨", "學校管理架構", "環保政策", "學校特色_其他", "校風", "學校發展計劃"]
         
         # 主分類 2: 學業評估與校園生活 (新增欄位列表)
@@ -681,8 +680,6 @@ if school_df is not None and article_df is not None:
                                 supervisor_display = f"{supervisor_name}{supervisor_title}" if is_valid_data(supervisor_name) else None
                                 display_info("校監_校管會主席姓名", supervisor_display)
                                 display_info("舊生會_校友會", row.get("舊生會_校友會"))
-                                # 移除舊的 法團校董會，因為新欄位已包含
-                                # display_info("法團校董會", row.get("法團校董會")) 
                             
                             # --- 關聯學校 (原「關聯與交通」) ---
                             st.divider()
