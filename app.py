@@ -22,23 +22,9 @@ st.markdown("""
         display: none;
     }
 
-    /* 2. 創建右側箭頭提示 (>> 符號) - 設置為隱藏 */
-    div[data-testid="stTabs"]::after {
-        content: none; /* 移除箭頭內容 */
-        position: absolute;
-        top: 0;
-        right: 0;
-        height: 100%;
-        width: 0px; /* 移除寬度 */
-        background: none; /* 移除所有背景漸變 */
-        box-shadow: none; /* 移除所有陰影 */
-        pointer-events: none;
-        z-index: 10;
-    }
-    
-    /* 確保左側箭頭也被移除 (如果之前有定義的話) */
-    div[data-testid="stTabs"]::before {
-        content: none;
+    /* 2. 移除所有箭頭/陰影提示 */
+    div[data-testid="stTabs"]::after, div[data-testid="stTabs"]::before {
+        content: none; 
         display: none;
     }
     
@@ -529,21 +515,44 @@ if school_df is not None and article_df is not None:
                     # --- TAB 2: 學業評估與安排 ---
                     with tabs[1]:
                         st.subheader("學業評估與安排")
-                        c1, c2, c3 = st.columns(3)
-                        with c1:
-                            display_info("一年級測驗次數", row.get(col_map["g1_tests"]))
-                            display_info("一年級考試次數", row.get(col_map["g1_exams"]))
-                        with c2:
-                            display_info("二至六年級測驗次數", row.get(col_map["g2_6_tests"]))
-                            display_info("二至六年級考試次數", row.get(col_map["g2_6_exams"]))
-                        with c3:
-                            display_info("小一上學期多元化評估", row.get(col_map["g1_diverse_assessment"]))
-                            display_info("下午設導修課", row.get(col_map["tutorial_session"]))
+                        
+                        # 測驗與考試次數 (3欄佈局)
+                        c_header1, c_header2, c_header3 = st.columns(3)
+                        with c_header2: st.markdown("**測驗次數**")
+                        with c_header3: st.markdown("**考試次數**")
+                        
+                        # 一年級
+                        c_g1_1, c_g1_2, c_g1_3 = st.columns(3)
+                        with c_g1_1: st.markdown("**一年級**")
+                        with c_g1_2: display_info("全年全科測驗次數_一年級", row.get(col_map["g1_tests"]))
+                        with c_g1_3: display_info("全年全科考試次數_一年級", row.get(col_map["g1_exams"]))
+                        
+                        # 二至六年級
+                        c_g2_1, c_g2_2, c_g2_3 = st.columns(3)
+                        with c_g2_1: st.markdown("**二至六年級**")
+                        with c_g2_2: display_info("全年全科測驗次數_二至六年級", row.get(col_map["g2_6_tests"]))
+                        with c_g2_3: display_info("全年全科考試次數_二至六年級", row.get(col_map["g2_6_exams"]))
                         
                         st.divider()
-                        for label, col_name in assessment_display_map.items():
-                            if label not in ["一年級測驗次數", "一年級考試次數", "二至六年級測驗次數", "二至六年級考試次數", "小一上學期多元化評估", "下午設導修課"]:
-                                display_info(label, row.get(col_name))
+                        
+                        # 政策與教學模式 (2欄佈局)
+                        st.subheader("課業及教學政策")
+                        c_policy1, c_policy2 = st.columns(2)
+                        
+                        # 第一欄
+                        with c_policy1:
+                            display_info("小一上學期多元化評估", row.get(col_map["g1_diverse_assessment"]))
+                            display_info("避免長假期後測考", row.get(col_map["no_test_after_holiday"]))
+                            display_info("網上校本課業政策", row.get(col_map["policy_on_web"]))
+                            display_info("制定校本課業政策", row.get(col_map["homework_policy"]))
+                        
+                        # 第二欄
+                        with c_policy2:
+                            display_info("下午設導修課", row.get(col_map["tutorial_session"]))
+                            display_info("分班安排", row.get(col_map["分班安排"]))
+                            display_info("班級教學模式", row.get(col_map["班級教學模式"]))
+                            display_info("多元學習評估", row.get(col_map["多元學習評估"]))
+
 
                     # --- TAB 3: 師資概況 ---
                     with tabs[2]:
