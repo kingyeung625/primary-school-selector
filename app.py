@@ -282,14 +282,11 @@ def display_info(label, value, is_fee=False):
 # --- [END] 輔助函數 ---
 
 
-# --- [新加入] 側邊欄篩選函數定義 ---
+# --- [修改後] 側邊欄篩選函數定義 (無標題/分隔線) ---
 def render_sidebar_filters(df):
     """
-    在 Streamlit 側邊欄中呈現地理與學校基礎資訊篩選器，
-    並使用原有的 key 儲存到 session_state 中。
+    在 Streamlit 側邊欄中呈現所有篩選器，無分類標題。
     """
-    st.sidebar.header("🌍 地理與學校基礎資訊篩選")
-    st.sidebar.markdown("---")
     
     # 1. 區域篩選 (key="region")
     unique_regions = sorted(df['區域'].dropna().unique().tolist())
@@ -309,8 +306,6 @@ def render_sidebar_filters(df):
         default=st.session_state.get("net", []),
         key="net"
     )
-        
-    st.sidebar.markdown("---")
 
     # 3. 資助類型篩選 (key="cat1")
     unique_types = sorted(df['資助類型'].dropna().unique().tolist())
@@ -348,9 +343,6 @@ def render_sidebar_filters(df):
         key="lang"
     )
 
-    st.sidebar.markdown("---")
-    st.sidebar.header("🤝 關聯與交通篩選")
-
     # 7. 關聯學校類型 (key="related")
     st.sidebar.multiselect(
         "關聯學校類型 (一條龍/直屬/聯繫)", 
@@ -367,7 +359,6 @@ def render_sidebar_filters(df):
         key="transport" 
     )
     
-    # 此函數只負責渲染 UI 並更新 session_state，不返回 DataFrame
     pass
 # --- [END] 側邊欄篩選函數定義 ---
 
@@ -392,7 +383,7 @@ if school_df is not None and article_df is not None:
 
     if not st.session_state.search_mode:
         
-        # 呼叫側邊欄篩選器 (將在此處渲染 UI 並更新 session_state)
+        # 呼叫側邊欄篩選器
         render_sidebar_filters(school_df) 
         
         school_name_query = st.text_input(
