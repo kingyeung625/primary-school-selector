@@ -5,7 +5,7 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示 (移除箭頭/陰影) ---
+# --- 注入 CSS 實現 Tab 滾動提示及表格樣式 ---
 st.markdown("""
     <style>
     /* 1. 基本容器設置 */
@@ -58,13 +58,16 @@ st.markdown("""
         width: 30%; 
     }
     
-    /* 5. 優化單一 Key-Value 列表的樣式，以替代表格錯位問題 */
+    /* 5. 政策列表樣式 - 單欄堆疊，確保內容清晰 */
     .policy-list-item {
-        padding: 6px 0;
+        padding: 8px 0px;
         border-bottom: 1px solid #eee;
     }
+    .policy-list-item:last-child {
+        border-bottom: none;
+    }
     .policy-list-item strong {
-        display: block; /* 讓標籤和內容在手機上自然換行 */
+        display: block; 
         margin-bottom: 2px;
         color: #333;
     }
@@ -594,8 +597,9 @@ if school_df is not None and article_df is not None:
 
                         st.markdown("##### 課業及教學政策")
                         
-                        # 政策與教學模式 - HTML Table (已修正錯位問題)
-                        # 1. 定義數據和標籤的列表
+                        # 政策與教學模式 - HTML Table (已修正為最終優化列表)
+                        
+                        # 1. 定義數據和標籤的列表 (確保順序與 DOCX 格式一致)
                         all_policy_data = [
                             ("g1_diverse_assessment", "小一上學期多元化評估"),
                             ("tutorial_session", "下午設導修課"),
@@ -607,40 +611,21 @@ if school_df is not None and article_df is not None:
                             ("policy_on_web", "網上校本課業政策"),
                         ]
                         
-                        policy_table_html = """
-                        <table class="clean-table policy-table">
-                            <tbody>
-                        """
+                        # 2. 建立 HTML 列表內容
+                        policy_list_html = ""
                         
-                        # 2. 循環生成 4 行 4 欄 (Label, Value, Label, Value)
-                        for i in range(0, len(all_policy_data), 2):
+                        for field_key, label in all_policy_data:
+                            # 獲取值，並將內部的 \n 轉換為 <br>
+                            value = str(row.get(col_map[field_key], "沒有")).replace('\n', '<br>')
                             
-                            # 左側項目
-                            left_field_key, left_label = all_policy_data[i]
-                            left_value = str(row.get(col_map[left_field_key], "沒有")).replace('\n', '<br>')
-                            
-                            # 右側項目
-                            if i + 1 < len(all_policy_data):
-                                right_field_key, right_label = all_policy_data[i+1]
-                                right_value = str(row.get(col_map[right_field_key], "沒有")).replace('\n', '<br>')
-                            else:
-                                right_label = ""
-                                right_value = "" # 處理單數行
-                            
-                            policy_table_html += f"""
-                                <tr>
-                                    <td>{left_label}</td>
-                                    <td>{left_value}</td>
-                                    <td>{right_label}</td>
-                                    <td>{right_value}</td>
-                                </tr>
+                            # 使用 CSS class 模擬 Key-Value 列表
+                            policy_list_html += f"""
+                                <div class="policy-list-item">
+                                    <strong>{label}：</strong>{value}
+                                </div>
                             """
-                            
-                        policy_table_html += """
-                            </tbody>
-                        </table>
-                        """
-                        st.markdown(policy_table_html, unsafe_allow_html=True)
+                        
+                        st.markdown(policy_list_html, unsafe_allow_html=True)
                             
                     # --- TAB 3: 師資概況 (保持不變) ---
                     with tabs[2]:
@@ -659,7 +644,7 @@ if school_df is not None and article_df is not None:
                         st.subheader("設施數量")
                         c1, c2, c3, c4 = st.columns(4)
                         with c1: display_info("課室數目", row.get("課室數目"))
-                        with c2: display_info("禮堂數目", row.get("禮堂數目"))
+                        with c2: display_info("禮堂數目", row.get("禮室數目"))
                         with c3: display_info("操場數目", row.get("操場數目"))
                         with c4: display_info("圖書館數目", row.get("圖書館數目"))
                         
