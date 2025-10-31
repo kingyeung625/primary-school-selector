@@ -201,7 +201,7 @@ def load_data():
         return None, None
 
 # --- [START] 輔助函數 ---
-# 修正 LABEL_MAP 以移除百分比符號，並修正用於 Tab 3 的鍵名
+# 這裡修改 LABEL_MAP 以移除百分比符號，滿足圖表類別標籤的要求
 LABEL_MAP = { 
     "校監_校管會主席姓名": "校監", 
     "校長姓名": "校長",
@@ -785,7 +785,6 @@ if school_df is not None and article_df is not None:
                             # 使用 CSV 實際名稱
                             display_info("核准編制教師職位數目", row.get("核准編制教師職位數目")) 
                         with c2:
-                            # 使用 CSV 實際名稱
                             display_info("教師總人數", row.get("教師總人數"))
 
                         st.divider()
