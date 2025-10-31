@@ -710,6 +710,7 @@ if school_df is not None and article_df is not None:
                         st.subheader("上學、午膳及交通安排")
                         
                         # 整合後的上學及午膳資訊 (移除 '上課時間_', '放學時間', '午膳時間')
+                        # 修正: 將被要求移除的時間欄位直接移除
                         c_time_lunch1, c_time_lunch2 = st.columns(2)
                         with c_time_lunch1:
                             # 校車/保姆車
