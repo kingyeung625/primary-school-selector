@@ -819,7 +819,7 @@ def display_results(results_container, school_df, article_df, col_map):
                         class_table_html = f"""
                         <table class="clean-table class-table">
                             <thead>
-                                <tr>
+                                    <tr>
                                     <th></th>
                                     <th>小一</th>
                                     <th>小二</th>
@@ -884,8 +884,8 @@ def display_results(results_container, school_df, article_df, col_map):
                     
                     # --- [END] TABS 結構 ---
 
-                # 5. 「回到最頂」按鈕 (在結果區塊的最下方)
-                st.divider()
-                if st.button("⬆️ 回到最頂", use_container_width=True):
-                    # 使用 st.rerun 模擬回到頂部的效果
-                    st.rerun()
+            # 5. 「回到最頂」按鈕 (在結果區塊的最下方)
+            st.divider()
+            if st.button("⬆️ 回到最頂", use_container_width=True):
+                # 使用 st.rerun 模擬回到頂部的效果
+                st.rerun()
