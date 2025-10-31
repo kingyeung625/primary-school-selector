@@ -208,6 +208,40 @@ def display_info(label, value, is_fee=False):
         return
 
     st.markdown(f"**{display_label}：** {display_value}")
+    
+# 格式化詳細資料頁面切換按鈕的高亮樣式
+def style_detail_button(label, school_key, current_detail_view):
+    is_selected = current_detail_view == label
+    
+    # --- CSS 調整: 縮小按鈕尺寸和間距 ---
+    # 這裡使用 st.markdown 嵌入 CSS 來調整按鈕的樣式
+    st.markdown(f"""
+        <style>
+            /* 針對整個按鈕容器的樣式 */
+            div[data-testid*="{school_key}_detail_btn_{label}"] > button {{
+                padding: 4px 8px; /* 縮小內邊距 */
+                margin: 2px 2px; /* 縮小外邊距 */
+                line-height: 1; /* 減少行高 */
+                font-size: 14px; /* 調整字體大小 */
+                height: auto; /* 讓高度貼合內容 */
+                border: 1px solid #1abc9c;
+                white-space: nowrap; /* 防止按鈕內的文字換行 */
+            }}
+            /* 調整按鈕被點擊時的顏色 */
+            div[data-testid*="{school_key}_detail_btn_{label}"] > button:focus:not(:active) {{
+                background-color: #1abc9c !important;
+                color: white !important;
+            }}
+        </style>
+    """, unsafe_allow_html=True)
+    # --- END CSS 調整 ---
+
+    button_type = "primary" if is_selected else "secondary"
+    
+    if st.button(label, type=button_type, key=f"{school_key}_detail_btn_{label}"):
+        st.session_state.detail_view_per_school[school_key] = label
+        st.rerun()
+
 # --- [END] 輔助函數 ---
 
 school_df, article_df = load_data()
@@ -415,11 +449,9 @@ if school_df is not None and article_df is not None:
                     for view in current_detail_views:
                         with cols[col_index % 2]: # 將按鈕分配給兩欄
                             is_selected = current_detail_view == view
-                            button_type = "primary" if is_selected else "secondary"
                             
-                            if st.button(view, type=button_type, use_container_width=True, key=f"{school_key}_detail_btn_{view}"):
-                                st.session_state.detail_view_per_school[school_key] = view
-                                st.rerun()
+                            # 應用尺寸和間距的 CSS 調整
+                            style_detail_button(view, school_key, current_detail_view)
                         
                         col_index += 1
                     
