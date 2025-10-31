@@ -3,9 +3,9 @@ import pandas as pd
 import numpy as np
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
+st.set_page_config(page_title="小學概覽選校搜尋器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示、表格樣式、側邊欄按鈕優化及 [NEW] 顏色背景設定 ---
+# --- 注入 CSS 實現 Tab 滾動提示、表格樣式、側邊欄按鈕優化及顏色背景設定 ---
 st.markdown("""
     <style>
     /* [NEW] 顏色背景設定 */
@@ -140,8 +140,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 # --- 注入 CSS 結束 ---
 
-# --- 主標題 ---
-st.title("香港小學選校篩選器")
+# --- Logo 及 主標題 (修改區) ---
+
+# 1. 顯示 Logo
+# 這裡使用 st.image 將您上傳的 Logo 放在主頁面頂部
+st.image("images.png", width=100) # 設置一個合適的寬度
+
+# 2. 顯示新標題
+st.title("小學概覽選校搜尋器")
 
 # --- 初始化 Session State ---
 if 'search_mode' not in st.session_state:
