@@ -5,14 +5,18 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
-# --- 注入 CSS 和 JavaScript 實現滾動箭頭提示 ---
-# 這是較為複雜的 CSS/JS 注入，用於在 Streamlit 框架中實現滾動監聽和視覺提示。
+# --- 注入 CSS 實現 Tab 滾動提示 (純 CSS 靜態箭頭) ---
 st.markdown("""
     <style>
     /* 1. 基本容器設置 */
     div[data-testid="stTabs"] {
         position: relative;
-        /* 隱藏預設滾動條 */
+        overflow-x: auto; /* 確保內容可以滾動 */
+        padding-bottom: 5px; /* 留出空間 */
+    }
+
+    /* 2. 隱藏預設滾動條 (可選，但讓畫面更乾淨) */
+    div[data-testid="stTabs"] > div:first-child {
         -ms-overflow-style: none;
         scrollbar-width: none;
     }
@@ -20,99 +24,34 @@ st.markdown("""
         display: none;
     }
 
-    /* 2. 創建箭頭偽元素 */
-    /* 使用 ::before 創建左箭頭 (<<) */
-    div[data-testid="stTabs"]::before {
-        content: '<<';
-        position: absolute;
-        top: 0;
-        left: 0;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        padding-left: 5px;
-        color: #1abc9c; /* 箭頭顏色 */
-        background: linear-gradient(to right, rgba(255, 255, 255, 1) 50%, rgba(255, 255, 255, 0) 100%);
-        pointer-events: none;
-        z-index: 100;
-        opacity: 0; /* 預設隱藏 */
-        transition: opacity 0.3s ease;
-    }
-
-    /* 使用 ::after 創建右箭頭 (>>) */
+    /* 3. 創建右側箭頭提示 (>> 符號) */
     div[data-testid="stTabs"]::after {
-        content: '>>';
+        content: '>>'; /* 使用雙箭頭符號 */
         position: absolute;
         top: 0;
         right: 0;
         height: 100%;
+        width: 30px; /* 提示區寬度 */
         display: flex;
         align-items: center;
+        justify-content: flex-end;
         padding-right: 5px;
-        color: #1abc9c; /* 箭頭顏色 */
-        background: linear-gradient(to left, rgba(255, 255, 255, 1) 50%, rgba(255, 255, 255, 0) 100%);
-        pointer-events: none;
-        z-index: 100;
-        opacity: 1; /* 預設顯示 */
-        transition: opacity 0.3s ease;
+        font-weight: bold;
+        color: #1abc9c; /* 顏色與按鈕風格一致 */
+        
+        /* 使用漸變色，在圖示區域模擬半透明的過渡效果 */
+        background: linear-gradient(to left, rgba(255, 255, 255, 1) 40%, rgba(255, 255, 255, 0) 100%);
+        pointer-events: none; /* 讓箭頭不阻擋點擊 Tab */
+        z-index: 10;
+        /* 預設箭頭顯示，因為Tab欄在手機上通常都是可滾動的 */
     }
-
-    /* 3. 滾動狀態類名 (由 JavaScript 控制) */
-    .show-left::before {
-        opacity: 1 !important;
-    }
-    .hide-right::after {
-        opacity: 0 !important;
-    }
+    
+    /* 註：Streamlit 的 Tab 佈局複雜，無法精確判斷內容是否滾動到底。
+       此處採用最穩定的常駐提示。 */
 
     </style>
 """, unsafe_allow_html=True)
-
-# --- 注入 JavaScript 實現滾動監聽 ---
-st.markdown("""
-    <script>
-    function setupTabScrollListener() {
-        const tabsContainer = document.querySelector('div[data-testid="stTabs"]');
-        if (!tabsContainer) return;
-
-        // 實際滾動的元素是第一個子元素
-        const scrollElement = tabsContainer.querySelector('div:first-child');
-        if (!scrollElement) return;
-
-        function updateShadows() {
-            const maxScrollLeft = scrollElement.scrollWidth - scrollElement.clientWidth;
-            const currentScroll = scrollElement.scrollLeft;
-
-            // 顯示/隱藏左箭頭 (<<)
-            if (currentScroll > 5) { // 滾動超過 5px，顯示左箭頭
-                tabsContainer.classList.add('show-left');
-            } else {
-                tabsContainer.classList.remove('show-left');
-            }
-
-            // 顯示/隱藏右箭頭 (>>)
-            if (maxScrollLeft - currentScroll > 5) { // 離最右邊超過 5px，顯示右箭頭
-                tabsContainer.classList.remove('hide-right');
-            } else {
-                tabsContainer.classList.add('hide-right');
-            }
-        }
-
-        // 監聽滾動事件
-        scrollElement.addEventListener('scroll', updateShadows);
-        
-        // 初始檢查 (必須延遲，因為 Streamlit 可能尚未完成渲染)
-        setTimeout(updateShadows, 500);
-        
-        // 應對視窗大小改變或內容大小改變
-        window.addEventListener('resize', updateShadows);
-    }
-    
-    // 延遲執行，確保 Streamlit 元素已經存在
-    setTimeout(setupTabScrollListener, 1000); 
-    </script>
-""", unsafe_allow_html=True)
-# --- JavaScript 注入結束 ---
+# --- 注入 CSS 結束 ---
 
 # --- 主標題 ---
 st.title("香港小學選校篩選器")
