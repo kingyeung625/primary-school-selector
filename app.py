@@ -329,16 +329,10 @@ def display_info(label, value, is_fee=False):
                 display_value = "$0"
             else:
                 display_value = val_str
-        elif is_time_field and ':' in val_str:
-            # 時間格式化邏輯 (只取時:分)
-            try:
-                parts = val_str.split(':')
-                if len(parts) >= 2:
-                    display_value = f"{parts[0].zfill(2)}:{parts[1].zfill(2)}"
-                else:
-                    display_value = val_str
-            except:
-                display_value = val_str
+        elif is_time_field:
+            # 💡 調整時間格式化邏輯以處理各種時間字串（包括 AM/PM 或完整的時分秒）
+            # 我們直接顯示清理後的字串，以確保所有有效時間格式都能呈現。
+            display_value = val_str
         else:
             # 處理所有非百分比的數字欄位 (包括修復後的教師人數)
             if isinstance(value, (int, float)):
@@ -716,16 +710,16 @@ if school_df is not None and article_df is not None:
                         # 第一排：上學時間 & 放學時間
                         c_time1, c_time2 = st.columns(2)
                         with c_time1:
-                            display_info("上課時間_", row.get("上課時間_")) # 對應 CC 欄
+                            display_info("上課時間_", row.get("上課時間_")) # 對應 CC 欄 (一般上學時間)
                         with c_time2:
-                            display_info("放學時間", row.get("放學時間")) # 對應 CD 欄
+                            display_info("放學時間", row.get("放學時間")) # 對應 CD 欄 (一般放學時間)
                         
                         # 第二排：午膳安排 & 午膳時間
                         c_lunch1, c_lunch2 = st.columns(2)
                         with c_lunch1:
                             display_info("午膳安排", row.get("午膳安排"))
                         with c_lunch2:
-                            display_info("午膳時間", row.get("午膳時間")) # 對應 CE 欄
+                            display_info("午膳時間", row.get("午膳時間")) # 對應 CE 欄 (午膳開始時間)
 
                         # 第三排：午膳結束時間 & 交通安排
                         c_lunch_end, c_transport = st.columns(2)
