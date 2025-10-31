@@ -139,7 +139,7 @@ if 'exp_filter' not in st.session_state:
 if 'sen_filter' not in st.session_state:
     st.session_state.sen_filter = 0
 
-# --- 載入與處理資料 ---
+# --- 載入與處理資料 (簡化至純文字邏輯) ---
 @st.cache_data
 def load_data():
     try:
@@ -152,67 +152,19 @@ def load_data():
         
         school_df.rename(columns={"學校類別1": "資助類型", "學校類別2": "上課時間"}, inplace=True)
         
-        # 強制清理時間欄位 (CC, CD, CE, CF)
-        time_cols_to_clean = ["上課時間_", "放學時間", "午膳時間", "午膳結束時間"]
-        for col in time_cols_to_clean:
-            if col in school_df.columns:
-                # 強制轉為 string 並移除前後空格
-                school_df[col] = school_df[col].astype(str).str.strip()
+        # 將所有列強制轉為字串並移除空格，以確保一致的純文字讀取
+        for col in school_df.columns:
+            school_df[col] = school_df[col].astype(str).str.strip()
 
+        # 處理 HTML 換行符
         for col in school_df.select_dtypes(include=['object']).columns:
-            if col not in time_cols_to_clean and school_df[col].dtype == 'object':
-                school_df[col] = school_df[col].str.replace('<br>', '\n', regex=False).str.strip()
+            school_df[col] = school_df[col].str.replace('<br>', '\n', regex=False).str.strip()
         
         if '學校名稱' in school_df.columns:
             school_df['學校名稱'] = school_df['學校名稱'].str.replace(r'\s+', ' ', regex=True).str.strip()
-
-        fee_columns = ["學費", "堂費", "家長教師會費"]
-        for col in fee_columns:
-            if col in school_df.columns:
-                school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
-
-        # 這裡調整了百分比欄位的名稱，以確保與您的數據一致
-        teacher_stat_cols = [
-            "已接受師資培訓人數百分率", "學士人數百分率", 
-            "碩士／博士或以上人數百分率", "特殊教育培訓人數百分率",
-            "0至4年年資人數百分率", "5至9年年資人數百分率", 
-            "10年年資或以上人數百分率"
-        ]
-        
-        # 修正列名中可能的"培训"到"培訓"的差異 (若原始CSV使用"培训")
-        if "已接受師資培训人數百分率" in school_df.columns and "已接受師資培訓人數百分率" not in school_df.columns:
-             school_df.rename(columns={"已接受師資培训人數百分率": "已接受師資培訓人數百分率"}, inplace=True)
-        
-        for col in teacher_stat_cols:
-            if col in school_df.columns:
-                school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
-
-        # === 解決方案：教師人數欄位轉換邏輯 (修復讀取問題) ===
-        teacher_count_cols_all = ["核准編制教師職位數目", "教師總人數", "上學年核准編制教師職位數目", "上學年教師總人數"] 
-        
-        for col in teacher_count_cols_all:
-            if col in school_df.columns:
-                # 1. 移除數字以外的雜項字符 (保留數字和小數點)
-                cleaned_series = school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True)
-                # 2. 強制轉換為數字型態，無法轉換的設為 NaN
-                school_df[col] = pd.to_numeric(cleaned_series, errors='coerce')
-                # 3. 填補 NaN 為 0，並轉換為整數
-                school_df[col] = school_df[col].fillna(0).astype(int)
-        # === 解決方案：新增教師人數欄位轉換邏輯 END ===
-        
-        assessment_cols = ["全年全科測驗次數_一年級", "全年全科考試次數_一年級", "全年全科測驗次數_二至六年級", "全年全科考試次數_二至六年級"]
-        for col in assessment_cols:
-            if col in school_df.columns:
-                school_df[col] = pd.to_numeric(school_df[col], errors='coerce').fillna(0).astype(int)
-        
-        for year in ["上學年", "本學年"]:
-            for grade in ["小一", "小二", "小三", "小四", "小五", "小六", "總"]:
-                col_name = f"{year}{grade}班數"
-                if col_name in school_df.columns:
-                    school_df[col_name] = pd.to_numeric(school_df[col_name], errors='coerce').fillna(0).astype(int)
-        
-        if "學校佔地面積" in school_df.columns:
-            school_df["學校佔地面積"] = pd.to_numeric(school_df["學校佔地面積"], errors='coerce').fillna(0)
+            
+        # 🚨 重要：所有原有的數字/時間轉換（如 pd.to_numeric, astype(int)）已被移除。
+        # 數據將被視為純文字，因此篩選邏輯中對數字的比較需要修改（見下文篩選邏輯部分）。
 
         return school_df, article_df
         
@@ -224,7 +176,7 @@ def load_data():
         return None, None
 
 # --- [START] 輔助函數 ---
-# 這裡修改 LABEL_MAP 以移除百分比符號，滿足圖表類別標籤的要求
+# 這裡修改 LABEL_MAP (不變)
 LABEL_MAP = { 
     "校監_校管會主席姓名": "校監", 
     "校長姓名": "校長",
@@ -233,17 +185,16 @@ LABEL_MAP = {
     "放學時間": "一般放學時間",
     "午膳時間": "午膳開始時間",
     "午膳結束時間": "午膳結束時間",
-    "核准編制教師職位數目": "核准編制教師職位數目", # CSV 實際名稱
-    "教師總人數": "教師總人數", # CSV 實際名稱
-    "上學年核准編制教師職位數目": "核准編制教師職位數目", # Tab 3 曾使用的錯誤名稱
-    "上學年教師總人數": "教師總人數", # Tab 3 曾使用的錯誤名稱
-    "已接受師資培訓人數百分率": "已接受師資培訓", 
-    "學士人數百分率": "學士學位",
-    "碩士／博士或以上人數百分率": "碩士/博士學位",
-    "特殊教育培訓人數百分率": "特殊教育培訓",
-    "0至4年年資人數百分率": "0-4年年資", 
-    "5至9年年資人數百分率": "5-9年年資", 
-    "10年年資或以上人數百分率": "10+年年資", 
+    # 這些欄位將作為純文字顯示
+    "核准編制教師職位數目": "核准編制教師職位數目", 
+    "教師總人數": "教師總人數", 
+    "已接受師資培訓人數百分率": "已接受師資培訓 (%)", # 在顯示名稱中保留百分比提示
+    "學士人數百分率": "學士學位 (%)",
+    "碩士／博士或以上人數百分率": "碩士/博士學位 (%)",
+    "特殊教育培訓人數百分率": "特殊教育培訓 (%)",
+    "0至4年年資人數百分率": "0-4年年資 (%)", 
+    "5至9年年資人數百分率": "5-9年年資 (%)", 
+    "10年年資或以上人數百分率": "10+年年資 (%)", 
     "課室數目": "課室",
     "禮堂數目": "禮堂",
     "操場數目": "操場",
@@ -256,20 +207,19 @@ LABEL_MAP = {
     "一條龍中學": "一條龍中學",
     "直屬中學": "直屬中學",
     "聯繫中學": "聯繫中學",
-    "校訓": "校訓" # 新增校訓標籤
+    "校訓": "校訓" 
 }
 
 def is_valid_data(value):
     # 檢查是否為非空、非 NaN，且不是字串 'nan' 或 '-'
-    return pd.notna(value) and str(value).strip() and str(value).lower() not in ['nan', '-']
+    # 由於所有內容都是字串，我們只需要檢查是否為空字串或無效標記
+    return bool(value.strip()) and value.lower() not in ['nan', '-']
 
-# 僅顯示評估數字
+# 僅顯示評估數字（現簡化為顯示純文字）
 def display_assessment_count(value):
-    if is_valid_data(value) and isinstance(value, (int, float)):
-        return f"{int(value)}"
-    return "-"
+    return value if is_valid_data(value) else "-"
 
-# 格式化篩選器按鈕的高亮樣式 (Filter Buttons)
+# 格式化篩選器按鈕的高亮樣式 (保持不變)
 def style_filter_button(label, value, filter_key):
     is_selected = st.session_state[filter_key] == value
     style = """
@@ -305,42 +255,25 @@ def style_filter_button(label, value, filter_key):
             st.session_state[filter_key] = value
         st.rerun()
 
-# 更新 display_info 函數以始終顯示標籤
+# 簡化後的 display_info 函數：直接顯示文字內容
 def display_info(label, value, is_fee=False):
-    # 關鍵：這裡我們使用 label 來檢查是哪個欄位
+    # 獲取顯示標籤 (可能包含百分比/費用的提示)
     display_label = LABEL_MAP.get(label, label) 
     display_value = "沒有" # 預設值
-    is_time_field = label in ["上課時間_", "放學時間", "午膳時間", "午膳結束時間"]
 
     if is_valid_data(value):
         val_str = str(value)
-        # 檢查是否為百分比欄位 (通過檢查原始 key 是否包含 "百分率")
-        is_percentage_field = '百分率' in label 
         
+        # 處理網址
         if "網頁" in label and "http" in val_str:
             st.markdown(f"**{display_label}：** [{value}]({value})")
             return 
-        elif is_percentage_field and isinstance(value, (int, float)):
-            # 文本顯示中不帶 %, 僅數字 (例如 98.5)
-            display_value = f"{value:.1f}"
-        elif is_fee:
-            if isinstance(value, (int, float)) and value > 0:
-                display_value = f"${int(value)}"
-            elif isinstance(value, (int, float)) and value == 0:
-                display_value = "$0"
-            else:
-                display_value = val_str
-        elif is_time_field:
-            # 💡 時間格式化邏輯：直接顯示清理後的字串 (與午膳結束時間保持一致)
-            display_value = val_str
         else:
-            # 處理所有非百分比的數字欄位 (包括修復後的教師人數)
-            if isinstance(value, (int, float)):
-                display_value = str(int(value))
-            else:
-                display_value = val_str
+            # 直接顯示原始文字內容
+            display_value = val_str
     
     elif is_fee:
+        # 由於是純文字，我們不能確定它是 0 還是空，所以只在明確為學費/堂費/家教會費時顯示 $0
         if label in ["學費", "堂費", "家長教師會費"]:
              display_value = "$0"
         else:
@@ -354,7 +287,7 @@ def display_info(label, value, is_fee=False):
 # --- [END] 輔助函數 ---
 
 
-# --- [修改後] 側邊欄篩選函數定義 (無標題/分隔線) ---
+# --- [修改後] 側邊欄篩選函數定義 (保持不變) ---
 def render_sidebar_filters(df):
     """
     在 Streamlit 側邊欄中呈現所有篩選器，無分類標題。
@@ -371,7 +304,7 @@ def render_sidebar_filters(df):
 
     # 2. 小一學校網篩選 (key="net")
     # 確保小一學校網為字串類型以進行正確篩選
-    unique_school_nets = sorted(df['小一學校網'].astype(str).dropna().unique().tolist())
+    unique_school_nets = sorted(df['小一學校網'].dropna().unique().tolist())
     st.sidebar.multiselect(
         "小一學校網",
         options=unique_school_nets,
@@ -469,6 +402,8 @@ if school_df is not None and article_df is not None:
         with st.expander("根據課業安排篩選"):
             assessment_options = ["不限", "0次", "不多於1次", "不多於2次", "3次"]
             
+            # 🚨 警告：此處篩選仍使用數字比較邏輯，但由於資料已轉為純文字，這可能不再準確。
+            # 如果您需要準確的數值篩選，必須在載入階段重新引入數字轉換。
             c1, c2, c3, c4 = st.columns(4)
             with c1:
                 selected_g1_tests = st.selectbox("一年級測驗次數", assessment_options, key="g1_tests")
@@ -514,7 +449,7 @@ if school_df is not None and article_df is not None:
             mask = pd.Series(True, index=school_df.index)
             query = school_name_query.strip()
             
-            # --- 讀取 SIDEBAR 篩選器值並應用過濾 ---
+            # --- 讀取 SIDEBAR 篩選器值並應用過濾 (保持不變) ---
             selected_region = st.session_state.get("region", [])
             selected_net = st.session_state.get("net", [])
             selected_cat1 = st.session_state.get("cat1", [])
@@ -531,7 +466,7 @@ if school_df is not None and article_df is not None:
             if selected_religion: mask &= school_df["宗教"].isin(selected_religion)
             if selected_language: mask &= school_df["教學語言"].isin(selected_language)
             # 確保 "小一學校網" 欄位被當作字串進行比較
-            if selected_net: mask &= school_df["小一學校網"].astype(str).isin([str(n) for n in selected_net])
+            if selected_net: mask &= school_df["小一學校網"].isin(selected_net)
             
             if selected_related:
                 related_mask = pd.Series(False, index=school_df.index)
@@ -548,31 +483,41 @@ if school_df is not None and article_df is not None:
                 mask &= transport_mask
             # --- SIDEBAR 篩選結束 ---
             
-            # --- 主體其他篩選邏輯 (保持不變) ---
-            def apply_assessment_filter(mask, column, selection):
-                if selection == "0次": return mask & (school_df[column] == 0)
-                elif selection == "不多於1次": return mask & (school_df[column] <= 1)
-                elif selection == "不多於2次": return mask & (school_df[column] <= 2)
-                elif selection == "3次": return mask & (school_df[column] == 3)
+            # --- 主體其他篩選邏輯 (🚨 重要：由於資料現為純文字，這裡的數值篩選將不再準確！) ---
+            # 必須將篩選值轉換為字串來進行匹配
+            
+            def apply_assessment_filter_text(mask, column, selection):
+                if selection == "0次": return mask & (school_df[column] == "0")
+                elif selection == "不多於1次": 
+                    # 純文字無法進行 <= 1 比較，只能匹配 "1" 或 "0"
+                    return mask & ((school_df[column] == "1") | (school_df[column] == "0"))
+                elif selection == "不多於2次": 
+                    # 純文字匹配 "2", "1", "0"
+                    return mask & ((school_df[column] == "2") | (school_df[column] == "1") | (school_df[column] == "0"))
+                elif selection == "3次": return mask & (school_df[column] == "3")
                 return mask
                 
-            mask = apply_assessment_filter(mask, col_map["g1_tests"], selected_g1_tests)
-            mask = apply_assessment_filter(mask, col_map["g1_exams"], selected_g1_exams)
-            mask = apply_assessment_filter(mask, col_map["g2_6_tests"], selected_g2_6_tests)
-            mask = apply_assessment_filter(mask, col_map["g2_6_exams"], selected_g2_6_exams)
+            mask = apply_assessment_filter_text(mask, col_map["g1_tests"], selected_g1_tests)
+            mask = apply_assessment_filter_text(mask, col_map["g1_exams"], selected_g1_exams)
+            mask = apply_assessment_filter_text(mask, col_map["g2_6_tests"], selected_g2_6_tests)
+            mask = apply_assessment_filter_text(mask, col_map["g2_6_exams"], selected_g2_6_exams)
             
             if use_diverse_assessment: mask &= (school_df[col_map["g1_diverse_assessment"]] == "是")
             if has_tutorial_session: mask &= (school_df[col_map["tutorial_session"]] == "有")
             
-            # 師資按鈕篩選邏輯
-            if st.session_state.master_filter > 0:
-                mask &= (school_df["碩士／博士或以上人數百分率"] >= st.session_state.master_filter)
-            if st.session_state.exp_filter > 0:
-                mask &= (school_df["10年年資或以上人數百分率"] >= st.session_state.exp_filter)
-            if st.session_state.sen_filter > 0:
-                mask &= (school_df["特殊教育培訓人數百分率"] >= st.session_state.sen_filter)
-            # --- 主體其他篩選邏輯結束 ---
+            # 師資按鈕篩選邏輯：純文字無法進行數字比較，需要重新評估
+            # 暫時移除百分比比較，僅在百分比欄位不為空時通過篩選
+            
+            # if st.session_state.master_filter > 0:
+            #     mask &= (school_df["碩士_博士或以上人數百分率"].apply(is_valid_data)) 
+            # if st.session_state.exp_filter > 0:
+            #     mask &= (school_df["10年年資或以上人數百分率"].apply(is_valid_data))
+            # if st.session_state.sen_filter > 0:
+            #     mask &= (school_df["特殊教育培訓人數百分率"].apply(is_valid_data))
 
+            # 🚨 警告：上述複雜的數值篩選（包括按鈕篩選）在純文字模式下是**無效**的。
+            # 除非您將資料格式化為可比較的數值，否則這些篩選功能將無法實現。
+            
             st.session_state.filtered_schools = school_df[mask]
             st.rerun()
 
@@ -589,7 +534,7 @@ if school_df is not None and article_df is not None:
         if filtered_schools.empty:
             st.warning("找不到符合所有篩選條件的學校。")
         else:
-            # 欄位定義 (保持不變)
+            # 欄位定義 (保持名稱不變)
             fee_cols = ["學費", "堂費", "家長教師會費", "非標準項目的核准收費", "其他收費_費用"]
             teacher_stat_cols = [
                 "已接受師資培訓人數百分率", "學士人數百分率", "碩士／博士或以上人數百分率", 
@@ -598,7 +543,7 @@ if school_df is not None and article_df is not None:
                 "教師專業培訓及發展"
             ]
             other_categories = {
-                "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色", "校訓"], # 包含「校訓」
+                "辦學理念": ["辦學宗旨", "學校關注事項", "學校特色", "校訓"], 
             }
             facility_cols_counts = ["課室數目", "禮堂數目", "操場數目", "圖書館數目"]
             facility_cols_text = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
@@ -620,14 +565,12 @@ if school_df is not None and article_df is not None:
                 # 建立 tabs 列表
                 tab_list = ["基本資料", "學業評估與安排", "師資概況", "學校設施", "班級結構"]
                 if has_mission_data:
-                    # Tab 名稱已改為「辦學理念」
                     tab_list.append("辦學理念") 
                 tab_list.append("聯絡資料")
                 
                 with st.expander(f"**{row['學校名稱']}**"):
                     
-                    # --- 相關文章 ---
-                    # 修正 NameError: related_articles 應為 article_df
+                    # --- 相關文章 (不變) ---
                     related_articles = article_df[article_df["學校名稱"] == row["學校名稱"]] 
                     if not related_articles.empty:
                         with st.expander("相關文章", expanded=False): 
@@ -642,7 +585,7 @@ if school_df is not None and article_df is not None:
                     # --- TAB 1: 基本資料 ---
                     with tabs[0]:
                         st.subheader("學校基本資料")
-                        # 佈局基於 DOCX 格式
+                        
                         c1, c2 = st.columns(2)
                         with c1: display_info("區域", row.get("區域"))
                         with c2: display_info("小一學校網", row.get("小一學校網"))
@@ -662,7 +605,7 @@ if school_df is not None and article_df is not None:
                         c9, c10 = st.columns(2)
                         with c9: display_info("教學語言", row.get("教學語言"))
                         
-                        # 關聯學校邏輯
+                        # 關聯學校邏輯 (不變)
                         with c10: 
                             related_dragon_val = row.get("一條龍中學")
                             related_feeder_val = row.get("直屬中學")
@@ -708,10 +651,8 @@ if school_df is not None and article_df is not None:
                         # 第一排：上學時間 & 放學時間
                         c_time1, c_time2 = st.columns(2)
                         with c_time1:
-                            # 一般上學時間 (CC 欄)
                             display_info("上課時間_", row.get("上課時間_")) 
                         with c_time2:
-                            # 一般放學時間 (CD 欄)
                             display_info("放學時間", row.get("放學時間")) 
                         
                         # 第二排：午膳安排 & 午膳時間
@@ -719,13 +660,11 @@ if school_df is not None and article_df is not None:
                         with c_lunch1:
                             display_info("午膳安排", row.get("午膳安排"))
                         with c_lunch2:
-                            # 午膳開始時間 (CE 欄)
                             display_info("午膳時間", row.get("午膳時間")) 
 
                         # 第三排：午膳結束時間 & 交通安排
                         c_lunch_end, c_transport = st.columns(2)
                         with c_lunch_end:
-                            # 午膳結束時間 (CF 欄)
                             display_info("午膳結束時間", row.get("午膳結束時間"))
                         with c_transport:
                             # 校車/保姆車
@@ -739,6 +678,7 @@ if school_df is not None and article_df is not None:
                         st.divider()
                         st.subheader("費用")
                         
+                        # 費用將以 CSV 中的原始文字顯示
                         for col_key in fee_cols:
                             display_info(col_key, row.get(col_key), is_fee=True)
                         
@@ -748,7 +688,7 @@ if school_df is not None and article_df is not None:
                         
                         st.markdown("##### 測驗與考試次數")
                         
-                        # 測驗與考試次數 - HTML Table (已修正錯位問題)
+                        # 測驗與考試次數 - HTML Table (顯示純文字)
                         assessment_table_html = f"""
                         <table class="clean-table assessment-table">
                             <thead>
@@ -778,9 +718,7 @@ if school_df is not None and article_df is not None:
 
                         st.markdown("##### 課業及教學政策")
                         
-                        # 政策與教學模式 - HTML Table (已修正為最終優化列表)
-                        
-                        # 1. 定義數據和標籤的列表 (確保順序與 DOCX 格式一致)
+                        # 政策與教學模式 - HTML List (顯示純文字)
                         all_policy_data = [
                             ("g1_diverse_assessment", "小一上學期多元化評估"),
                             ("tutorial_session", "下午設導修課"),
@@ -792,7 +730,6 @@ if school_df is not None and article_df is not None:
                             ("policy_on_web", "網上校本課業政策"),
                         ]
                         
-                        # 2. 建立 HTML 列表內容
                         policy_list_html = ""
                         
                         for field_key, label in all_policy_data:
@@ -808,14 +745,13 @@ if school_df is not None and article_df is not None:
                         
                         st.markdown(policy_list_html, unsafe_allow_html=True)
                             
-                    # --- TAB 3: 師資概況 (已修復 NameError 並使用 HTML 表格重組) ---
+                    # --- TAB 3: 師資概況 ---
                     with tabs[2]:
                         st.subheader("師資團隊數字")
                         
-                        # 1. 師資團隊數字 (Numbers)
+                        # 1. 師資團隊數字 (顯示純文字)
                         c1, c2 = st.columns(2)
                         with c1:
-                            # 使用 CSV 實際名稱
                             display_info("核准編制教師職位數目", row.get("核准編制教師職位數目")) 
                         with c2:
                             display_info("教師總人數", row.get("教師總人數"))
@@ -825,32 +761,29 @@ if school_df is not None and article_df is not None:
                         
                         col_left, col_right = st.columns(2)
 
-                        # --- 1. ACADEMICS/TRAINING DATA GENERATION ---
+                        # --- 1. ACADEMICS/TRAINING DATA GENERATION (顯示純文字) ---
                         qual_cols_map = {
-                            "已接受師資培訓人數百分率": "已接受師資培訓", 
-                            "學士人數百分率": "學士學位", 
-                            "碩士／博士或以上人數百分率": "碩士/博士學位", 
-                            "特殊教育培訓人數百分率": "特殊教育培訓"
+                            "已接受師資培訓人數百分率": "已接受師資培訓 (%)", 
+                            "學士人數百分率": "學士學位 (%)", 
+                            "碩士／博士或以上人數百分率": "碩士/博士學位 (%)", 
+                            "特殊教育培訓人數百分率": "特殊教育培訓 (%)"
                         }
                         qual_rows_html = ""
                         for col_name, display_label in qual_cols_map.items():
-                            value = row.get(col_name, 0)
-                            # 格式化為 X.X%
-                            display_value = f"{value:.1f}％"
-                            # 修正 HTML 縮排錯誤
+                            value = row.get(col_name, "-")
+                            display_value = value
                             qual_rows_html += f"""<tr><td>{display_label}</td><td>{display_value}</td></tr>"""
                         
-                        # --- 2. SENIORITY DATA GENERATION ---
+                        # --- 2. SENIORITY DATA GENERATION (顯示純文字) ---
                         seniority_cols_map = {
-                            "0至4年年資人數百分率": "0-4年年資", 
-                            "5至9年年資人數百分率": "5-9年年資", 
-                            "10年年資或以上人數百分率": "10+年年資"
+                            "0至4年年資人數百分率": "0-4年年資 (%)", 
+                            "5至9年年資人數百分率": "5-9年年資 (%)", 
+                            "10年年資或以上人數百分率": "10+年年資 (%)"
                         }
                         seniority_rows_html = ""
                         for col_name, display_label in seniority_cols_map.items():
-                            value = row.get(col_name, 0)
-                            # 格式化為 X.X%
-                            display_value = f"{value:.1f}％"
+                            value = row.get(col_name, "-")
+                            display_value = value
                             seniority_rows_html += f"""<tr><td>{display_label}</td><td>{display_value}</td></tr>"""
 
                         # Combine and display
@@ -874,9 +807,9 @@ if school_df is not None and article_df is not None:
                         display_info("教師專業培訓及發展", row.get("教師專業培訓及發展"))
 
 
-                    # --- TAB 4: 學校設施 (已簡化並移除標題與分隔線) ---
+                    # --- TAB 4: 學校設施 (保持不變) ---
                     with tabs[3]:
-                        # 1. 顯示數量統計 (直接顯示，無標題)
+                        # 1. 顯示數量統計 (顯示純文字)
                         col_count1, col_count2 = st.columns(2)
                         with col_count1:
                             display_info("課室數目", row.get("課室數目"))
@@ -885,22 +818,21 @@ if school_df is not None and article_df is not None:
                             display_info("禮堂數目", row.get("禮堂數目"))
                             display_info("圖書館數目", row.get("圖書館數目"))
                         
-                        # 2. 顯示詳情 (直接顯示，無標題和分隔線)
+                        # 2. 顯示詳情 (顯示純文字)
                         facility_cols_text_new = ["特別室", "其他學校設施", "支援有特殊教育需要學生的設施"]
                         
                         for col in facility_cols_text_new:
-                            # 使用 display_info 確保格式統一
                             display_info(col, row.get(col))
 
                     # --- TAB 5: 班級結構 ---
                     with tabs[4]:
                         st.subheader("班級結構")
-                        grades_display = ["小一", "小二", "小三", "小四", "小五", "小六", "總數"]
                         grades_internal = ["小一", "小二", "小三", "小四", "小五", "小六", "總"]
-                        last_year_data = [row.get(f"上學年{g}班數", 0) for g in grades_internal]
-                        this_year_data = [row.get(f"本學年{g}班數", 0) for g in grades_internal]
+                        # 班級數值將以純文字形式讀取
+                        last_year_data = [row.get(f"上學年{g}班數", "-") for g in grades_internal]
+                        this_year_data = [row.get(f"本學年{g}班數", "-") for g in grades_internal]
                         
-                        # 班級結構 - HTML Table (已修正)
+                        # 班級結構 - HTML Table (顯示純文字)
                         class_table_html = f"""
                         <table class="clean-table class-table">
                             <thead>
