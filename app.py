@@ -643,7 +643,7 @@ if school_df is not None and article_df is not None:
 
                     tabs = st.tabs(tab_list)
 
-                    # --- TAB 1: 基本資料 (保持不變) ---
+                    # --- TAB 1: 基本資料 (已優化：上學時間移至此處) ---
                     with tabs[0]:
                         st.subheader("學校基本資料")
                         # 佈局基於 DOCX 格式
@@ -716,7 +716,8 @@ if school_df is not None and article_df is not None:
                             display_info("校車或保姆車", transport_status)
                         
                         c15, c16 = st.columns(2)
-                        with c15: display_info("上課時間_", row.get("上課時間_"))
+                        # 修正: 使用上學時間_ 的數據，取代原有的"一般上學時間"
+                        with c15: display_info("上課時間_", row.get("上課時間_")) 
                         with c16: display_info("放學時間", row.get("放學時間"))
 
                         st.divider()
@@ -830,12 +831,8 @@ if school_df is not None and article_df is not None:
                             value = row.get(col_name, 0)
                             # 格式化為 X.X%
                             display_value = f"{value:.1f}％"
-                            qual_rows_html += f"""
-<tr>
-    <td>{display_label}</td>
-    <td>{display_value}</td>
-</tr>
-"""
+                            # 修正：將 HTML 標籤放在單行，避免 Python 縮排錯誤
+                            qual_rows_html += f"<tr><td>{display_label}</td><td>{display_value}</td></tr>"
                         
                         # --- 2. SENIORITY DATA GENERATION ---
                         seniority_cols_map = {
@@ -848,12 +845,7 @@ if school_df is not None and article_df is not None:
                             value = row.get(col_name, 0)
                             # 格式化為 X.X%
                             display_value = f"{value:.1f}％"
-                            seniority_rows_html += f"""
-<tr>
-    <td>{display_label}</td>
-    <td>{display_value}</td>
-</tr>
-"""
+                            seniority_rows_html += f"<tr><td>{display_label}</td><td>{display_value}</td></tr>"
 
                         # Combine and display
                         with col_left:
