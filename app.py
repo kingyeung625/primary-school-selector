@@ -5,21 +5,25 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示、表格樣式、側邊欄按鈕優化及 [NEW] 背景圖片設定 ---
+# --- 注入 CSS 實現 Tab 滾動提示、表格樣式、側邊欄按鈕優化及 [NEW] 顏色背景設定 ---
 st.markdown("""
     <style>
-    /* [NEW] 背景圖片設定及響應式處理 */
+    /* [NEW] 顏色背景設定 */
     .stApp {
-        background-image: url("https://raw.githubusercontent.com/kingyeung625/primary-school-selector/b20b072c8613dfd2f104d70840ab122203691ab0/Gemini_Generated_Image_2fdadv2fdadv2fda.png"); 
-        background-size: cover; /* 確保圖片覆蓋整個容器，實現響應式 */
-        background-position: center; /* 圖片中心對齊 */
-        background-attachment: fixed; /* 內容滾動時，背景圖片固定不動 */
-        background-repeat: no-repeat;
+        /* 使用純色背景 */
+        background-color: #FFEFE0; 
+        
+        /* 移除圖片相關設定 */
+        background-image: none; 
+        background-size: auto; 
+        background-position: initial; 
+        background-attachment: initial; 
+        background-repeat: initial; 
     }
 
     /* [NEW] 側邊欄透明化，確保背景可見 */
     [data-testid="stSidebar"] {
-        background-color: rgba(255, 255, 255, 0.85); /* 85% 透明度 */
+        background-color: rgba(255, 255, 255, 0.85); /* 85% 透明度的白色，與米黃色背景形成柔和對比 */
     }
 
     /* 1. 基本容器設置 */
