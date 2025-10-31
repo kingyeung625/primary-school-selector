@@ -188,7 +188,7 @@ def load_data():
         return None, None
 
 # --- [START] 輔助函數 ---
-# 為了避免在 display_info 中出現 %, 這裡將 LABEL_MAP 中的 (%) 移除
+# 為了讓圖表類別標籤不顯示 %，這裡只儲存精簡名稱
 LABEL_MAP = { 
     "校監_校管會主席姓名": "校監", 
     "校長姓名": "校長",
@@ -280,7 +280,7 @@ def display_info(label, value, is_fee=False):
             st.markdown(f"**{display_label}：** [{value}]({value})")
             return 
         elif is_percentage_field and isinstance(value, (int, float)):
-            # 文本顯示中不帶 %, 僅數字
+            # 文本顯示中不帶 %, 僅數字 (例如 98.5)
             display_value = f"{value:.1f}"
         elif is_fee:
             if isinstance(value, (int, float)) and value > 0:
@@ -789,7 +789,7 @@ if school_df is not None and article_df is not None:
                         qual_df = pd.DataFrame(qual_data)
                         
                         # 2. 繪製條形圖 (Bar Chart)
-                        # --- 核心修正: 設定 X 軸 scale domain 為 [0, 100] ---
+                        # --- 核心修正: 設定 X 軸 scale domain 為 [0, 100]，確保 100% 不被截斷 ---
                         scale_domain = [0, 100]
                         bars = alt.Chart(qual_df).mark_bar(color='#1abc9c').encode(
                             # X 軸格式化為百分比, 並設定 scale domain
