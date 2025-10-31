@@ -10,8 +10,8 @@ st.markdown("""
     <style>
     /* [NEW] 顏色背景設定 */
     .stApp {
-        /* 使用純色背景 */
-        background-color: #FFEFE0; 
+        /* 使用全白色背景 */
+        background-color: #FFFFFF; 
         
         /* 移除圖片相關設定 */
         background-image: none; 
@@ -21,9 +21,10 @@ st.markdown("""
         background-repeat: initial; 
     }
 
-    /* [NEW] 側邊欄透明化，確保背景可見 */
+    /* [NEW] 側邊欄調整透明度，使其更貼合白色背景 */
     [data-testid="stSidebar"] {
-        background-color: rgba(255, 255, 255, 0.85); /* 85% 透明度的白色，與米黃色背景形成柔和對比 */
+        /* 設置為近乎不透明的白色，確保內容清晰可讀 */
+        background-color: rgba(255, 255, 255, 0.95); 
     }
 
     /* 確保 Logo 和標題在同一行並垂直居中 */
@@ -158,7 +159,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 # --- 注入 CSS 結束 ---
 
-# --- Logo 及 主標題 (修改區) ---
+# --- Logo 及 主標題 ---
 
 LOGO_URL = "https://raw.githubusercontent.com/kingyeung625/primary-school-selector/0147c6564ccd706049b1c3ed9885ecc920f70f9f/images.png"
 TITLE_TEXT = "小學概覽選校搜尋器"
