@@ -5,17 +5,19 @@ import numpy as np
 # --- 頁面設定 ---
 st.set_page_config(page_title="香港小學選校篩選器", layout="wide")
 
-# --- 注入 CSS 實現 Tab 滾動提示及表格樣式 ---
+# --- 注入 CSS 實現 Tab 滾動提示 (移除箭頭/陰影) ---
 st.markdown("""
     <style>
     /* 1. 基本容器設置 */
     div[data-testid="stTabs"] {
         position: relative;
-        overflow-x: auto; 
-        padding-bottom: 5px; 
+        overflow-x: auto; /* 確保內容可以滾動 */
+        padding-bottom: 5px; /* 留出空間 */
+        /* 隱藏預設滾動條 */
         -ms-overflow-style: none;
         scrollbar-width: none;
     }
+    /* 隱藏 Chrome/Safari 滾動條 */
     div[data-testid="stTabs"] > div:first-child::-webkit-scrollbar {
         display: none;
     }
@@ -26,7 +28,7 @@ st.markdown("""
         display: none;
     }
     
-    /* 3. HTML 表格基本樣式 (通用於所有clean-table) */
+    /* 3. HTML 表格基本樣式 (通用於所有clean-table，解決響應式對齊問題) */
     .clean-table {
         width: 100%;
         border-collapse: collapse;
@@ -53,25 +55,18 @@ st.markdown("""
     }
     .clean-table.class-table td:nth-child(1), .clean-table.assessment-table td:nth-child(1) {
         font-weight: bold; /* 讓第一欄文字粗體顯示 */
-        width: 30%; /* 確保第一欄寬度足夠 */
+        width: 30%; 
     }
-
-    /* 5. 課業及教學政策 表格樣式 (4欄結構) */
-    .clean-table.policy-table {
-        margin-top: 15px;
+    
+    /* 5. 優化單一 Key-Value 列表的樣式，以替代表格錯位問題 */
+    .policy-list-item {
+        padding: 6px 0;
+        border-bottom: 1px solid #eee;
     }
-    .clean-table.policy-table td {
-        padding: 8px 6px; 
-        border-bottom: 1px solid #eee; 
-    }
-    /* 標籤 (1, 3欄) */
-    .clean-table.policy-table td:nth-child(2n+1) {
-        font-weight: bold; 
-        width: 25%; 
-    }
-    /* 內容 (2, 4欄) */
-    .clean-table.policy-table td:nth-child(2n) {
-        width: 25%; 
+    .policy-list-item strong {
+        display: block; /* 讓標籤和內容在手機上自然換行 */
+        margin-bottom: 2px;
+        color: #333;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -569,12 +564,12 @@ if school_df is not None and article_df is not None:
                         
                         st.markdown("##### 測驗與考試次數")
                         
-                        # 測驗與考試次數 - HTML Table (已修正)
+                        # 測驗與考試次數 - HTML Table (已修正錯位問題)
                         assessment_table_html = f"""
                         <table class="clean-table assessment-table">
                             <thead>
                                 <tr>
-                                    <th></th>
+                                    <th style="width: 35%;"></th>
                                     <th>測驗次數</th>
                                     <th>考試次數</th>
                                 </tr>
@@ -599,41 +594,38 @@ if school_df is not None and article_df is not None:
 
                         st.markdown("##### 課業及教學政策")
                         
-                        # 政策與教學模式 (HTML Table - 已修正為響應式 4欄結構)
-                        # 1. 定義欄位順序 (與原 st.columns 保持一致的垂直流向)
-                        left_fields = [
-                            col_map["g1_diverse_assessment"],
-                            col_map["tutorial_session"],
-                            col_map["homework_policy"],
-                            col_map["no_test_after_holiday"],
+                        # 政策與教學模式 - HTML Table (已修正錯位問題)
+                        # 1. 定義數據和標籤的列表
+                        all_policy_data = [
+                            ("g1_diverse_assessment", "小一上學期多元化評估"),
+                            ("tutorial_session", "下午設導修課"),
+                            ("homework_policy", "制定校本課業政策"),
+                            ("no_test_after_holiday", "避免長假期後測考"),
+                            ("分班安排", "分班安排"),
+                            ("班級教學模式", "班級教學模式"),
+                            ("diverse_learning_assessment", "多元學習評估"),
+                            ("policy_on_web", "網上校本課業政策"),
                         ]
-                        right_fields = [
-                            col_map["分班安排"],
-                            col_map["班級教學模式"],
-                            col_map["diverse_learning_assessment"],
-                            col_map["policy_on_web"],
-                        ]
-                        # 定義顯示標籤
-                        left_labels = [assessment_display_map[k] for k in ["g1_diverse_assessment", "tutorial_session", "homework_policy", "no_test_after_holiday"]]
-                        right_labels = [assessment_display_map[k] for k in ["分班安排", "班級教學模式", "diverse_learning_assessment", "policy_on_web"]]
-
-                        # 2. 建立 HTML 內容
+                        
                         policy_table_html = """
                         <table class="clean-table policy-table">
                             <tbody>
                         """
-                        # 3. 循環生成 4 行 4 欄 (Label, Value, Label, Value)
-                        for i in range(4):
+                        
+                        # 2. 循環生成 4 行 4 欄 (Label, Value, Label, Value)
+                        for i in range(0, len(all_policy_data), 2):
                             
-                            # 獲取左側數據並處理換行符
-                            left_key = left_fields[i]
-                            left_label = left_labels[i]
-                            left_value = str(row.get(left_key, "沒有")).replace('\n', '<br>')
+                            # 左側項目
+                            left_field_key, left_label = all_policy_data[i]
+                            left_value = str(row.get(col_map[left_field_key], "沒有")).replace('\n', '<br>')
                             
-                            # 獲取右側數據並處理換行符
-                            right_key = right_fields[i]
-                            right_label = right_labels[i]
-                            right_value = str(row.get(right_key, "沒有")).replace('\n', '<br>')
+                            # 右側項目
+                            if i + 1 < len(all_policy_data):
+                                right_field_key, right_label = all_policy_data[i+1]
+                                right_value = str(row.get(col_map[right_field_key], "沒有")).replace('\n', '<br>')
+                            else:
+                                right_label = ""
+                                right_value = "" # 處理單數行
                             
                             policy_table_html += f"""
                                 <tr>
