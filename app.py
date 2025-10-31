@@ -164,11 +164,8 @@ def load_data():
             if col in school_df.columns:
                 school_df[col] = pd.to_numeric(school_df[col].astype(str).str.replace('[^0-9.]', '', regex=True), errors='coerce').fillna(0)
 
-        # === 解決方案：新增教師人數欄位轉換邏輯 START ===
-        # 使用 CSV 中實際存在的欄位名稱進行清理
-        teacher_count_cols_actual = ["核准編制教師職位數目", "教師總人數"] 
-        # 為了兼容 Tab 3 中錯誤使用的 prefixed 欄位，我們必須檢查並清理所有可能性
-        teacher_count_cols_all = teacher_count_cols_actual + ["上學年核准編制教師職位數目", "上學年教師總人數"] 
+        # === 解決方案：新增教師人數欄位轉換邏輯 START (保留並擴展) ===
+        teacher_count_cols_all = ["核准編制教師職位數目", "教師總人數", "上學年核准編制教師職位數目", "上學年教師總人數"] 
         
         for col in teacher_count_cols_all:
             if col in school_df.columns:
@@ -204,8 +201,7 @@ def load_data():
         return None, None
 
 # --- [START] 輔助函數 ---
-# 這裡修改 LABEL_MAP 以移除百分比符號，滿足圖表類別標籤的要求
-# 同時修正 LABEL_MAP 中的鍵名，確保它能匹配 Tab 3 中的錯誤鍵名
+# 修正 LABEL_MAP 以移除百分比符號，並修正用於 Tab 3 的鍵名
 LABEL_MAP = { 
     "校監_校管會主席姓名": "校監", 
     "校長姓名": "校長",
@@ -214,11 +210,10 @@ LABEL_MAP = {
     "放學時間": "一般放學時間",
     "午膳時間": "午膳開始時間",
     "午膳結束時間": "午膳結束時間",
-    "核准編制教師職位數目": "核准編制教師職位數目", # 修正後的實際欄位名
-    "教師總人數": "教師總人數", # 修正後的實際欄位名
-    # 為了向下兼容並使用修正後的 display_info 邏輯，保留 Tab 3 中使用的錯誤鍵名，並將其映射到正確的顯示名稱
-    "上學年核准編制教師職位數目": "核准編制教師職位數目", # Tab 3 錯誤使用的鍵名
-    "上學年教師總人數": "教師總人數", # Tab 3 錯誤使用的鍵名
+    "核准編制教師職位數目": "核准編制教師職位數目", # CSV 實際名稱
+    "教師總人數": "教師總人數", # CSV 實際名稱
+    "上學年核准編制教師職位數目": "核准編制教師職位數目", # Tab 3 曾使用的錯誤名稱
+    "上學年教師總人數": "教師總人數", # Tab 3 曾使用的錯誤名稱
     "已接受師資培訓人數百分率": "已接受師資培訓", 
     "學士人數百分率": "學士學位",
     "碩士／博士或以上人數百分率": "碩士/博士學位",
@@ -787,10 +782,9 @@ if school_df is not None and article_df is not None:
                         st.subheader("師資團隊數字")
                         c1, c2 = st.columns(2)
                         with c1:
-                            # 使用實際存在的欄位名獲取數據
+                            # 修正為使用實際 CSV 欄位名稱，但 display_info 會自動將其映射到 Label Map 中簡潔的名稱
                             display_info("核准編制教師職位數目", row.get("核准編制教師職位數目")) 
                         with c2:
-                            # 使用實際存在的欄位名獲取數據
                             display_info("教師總人數", row.get("教師總人數"))
 
                         st.divider()
@@ -807,6 +801,7 @@ if school_df is not None and article_df is not None:
                         for col_name, display_label in qual_cols_map.items():
                             qual_data.append({
                                 '類別': display_label,
+                                # 關鍵：讀取原始百分比數值
                                 '百分比': row.get(col_name, 0) 
                             })
                         qual_df = pd.DataFrame(qual_data)
@@ -814,25 +809,29 @@ if school_df is not None and article_df is not None:
                         # 2. 繪製條形圖 (Bar Chart)
                         scale_domain = [0, 100]
                         bars = alt.Chart(qual_df).mark_bar(color='#1abc9c').encode(
+                            # X 軸格式化為百分比, 並設定 scale domain
                             x=alt.X('百分比', title='百分比', scale=alt.Scale(domain=scale_domain)), 
+                            # Y 軸使用移除 % 的類別名稱
                             y=alt.Y('類別', title=None, sort='-x'), 
+                            # 提示框格式化為百分比
                             tooltip=['類別', alt.Tooltip('百分比', format='.1f%')]
                         )
                         
+                        # 2b. 加入文字標籤 (置中、白色字體、粗體、大字體、加 % 符號)
                         text = bars.mark_text(
                             align='center', 
                             baseline='middle',
-                            fontSize=14, 
-                            fontWeight='bold' 
+                            fontSize=14, # 放大字體
+                            fontWeight='bold' # 加粗
                         ).encode(
-                            text=alt.Text('百分比', format='.1f%'), 
-                            color=alt.value('white') 
+                            text=alt.Text('百分比', format='.1f%'), # 顯示百分比數字並加 % 符號
+                            color=alt.value('white') # 文字顏色設為白色
                         )
 
                         bar_chart = (bars + text).properties(
                             title='教師學術及培訓背景'
                         ).configure_view(
-                            strokeWidth=0 
+                            strokeWidth=0 # 移除圖表邊框
                         ).interactive()
                         
                         st.altair_chart(bar_chart, use_container_width=True)
@@ -850,6 +849,7 @@ if school_df is not None and article_df is not None:
                         for col_name, display_label in seniority_cols_map.items():
                             seniority_data.append({
                                 '年資': display_label,
+                                # 關鍵：讀取原始百分比數值
                                 '百分比': row.get(col_name, 0)
                             })
                         seniority_df = pd.DataFrame(seniority_data)
@@ -862,9 +862,10 @@ if school_df is not None and article_df is not None:
                         pie = base.mark_arc(outerRadius=120, innerRadius=50).encode(
                             color=alt.Color(field="年資", title="年資類別"),
                             order=alt.Order("百分比", sort="descending"), 
-                            tooltip=["年資", alt.Tooltip("百分比", format=".1f%")] 
+                            tooltip=["年資", alt.Tooltip("百分比", format=".1f%")] # 提示框加 % 符號
                         )
                         
+                        # 4b. 加入文字標籤 (數字) (粗體、大字體、加 % 符號)
                         text_pie = base.mark_text(radius=100, fontSize=14, fontWeight='bold').encode( 
                             text=alt.Text("百分比", format=".1f%"), 
                             order=alt.Order("百分比", sort="descending"),
